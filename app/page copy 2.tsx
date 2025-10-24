@@ -1,0 +1,481 @@
+"use client";
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowRight, Mail, ExternalLink, Github, Sparkles, Zap, Code2, Check } from 'lucide-react';
+
+// Utility function for smoother parallax (optional, but good practice)
+const clamp = (num, min, max) => Math.max(min, Math.min(num, max));
+
+export default function RYDevPortfolioV3() {
+  const [scrollY, setScrollY] = useState(0);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const heroRef = useRef(null);
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    const handleMouseMove = (e) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('mousemove', handleMouseMove);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
+
+  const projects = [
+    {
+      title: "Lumina AI",
+      client: "AI Research Platform",
+      description: "A sophisticated portfolio showcasing cutting-edge machine learning research with interactive data visualizations, publication archives, and real-time collaboration tools.",
+      tech: ["Next.js 14", "Tailwind", "Framer Motion", "Three.js", "TensorFlow.js"],
+      image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80",
+      link: "#",
+      status: "Live",
+      color: "border-green-500 hover:bg-green-500/10"
+    },
+    {
+      title: "Atelier Noir",
+      client: "Architecture Studio",
+      description: "Minimalist landing page for a Paris-based architecture firm, featuring fullscreen project galleries, seamless navigation, and an immersive visual experience.",
+      tech: ["Next.js 14", "Tailwind", "GSAP", "Sanity CMS", "Sharp"],
+      image: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&q=80",
+      link: "#",
+      status: "Live",
+      color: "border-cyan-500 hover:bg-cyan-500/10"
+    },
+    {
+      title: "Maya Chen",
+      client: "Product Designer",
+      description: "Personal portfolio with detailed case studies, fluid animations, and a custom cursor experience that reflects the designer's attention to detail.",
+      tech: ["Next.js 14", "Tailwind", "Framer Motion", "MDX", "Resend"],
+      image: "https://images.unsplash.com/photo-1559028012-481c04fa702d?w=800&q=80",
+      link: "#",
+      status: "Coming Soon",
+      color: "border-yellow-500 hover:bg-yellow-500/10"
+    },
+    {
+      title: "Velocity",
+      client: "SaaS Startup",
+      description: "High-converting landing page for a productivity tool, optimized for speed and SEO with integrated waitlist functionality.",
+      tech: ["Next.js 14", "Tailwind", "Analytics", "Vercel AI", "Stripe"],
+      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80",
+      link: "#",
+      status: "Live",
+      color: "border-fuchsia-500 hover:bg-fuchsia-500/10"
+    },
+  ];
+
+  const process = [
+    {
+      icon: <Sparkles className="w-7 h-7 text-fuchsia-500" />,
+      title: "Discovery & Strategy",
+      description: "Deep consultation to align on vision, audience, and business goals, ensuring every design decision is strategically informed.",
+      duration: "3-5 days"
+    },
+    {
+      icon: <Code2 className="w-7 h-7 text-cyan-500" />,
+      title: "Design & Prototype",
+      description: "Crafting a pixel-perfect, custom design system from wireframes to high-fidelity, interactive prototypes for client feedback.",
+      duration: "1-2 weeks"
+    },
+    {
+      icon: <Zap className="w-7 h-7 text-green-500" />,
+      title: "Development & Build",
+      description: "Bringing the design to life with clean, performant Next.js code, smooth animations, and best practices for accessibility.",
+      duration: "2-3 weeks"
+    },
+    {
+      icon: <ArrowRight className="w-7 h-7 text-yellow-500" />,
+      title: "Launch & Support",
+      description: "Seamless deployment on Vercel, comprehensive SEO optimization, and dedicated post-launch support and content management training.",
+      duration: "2-3 days"
+    }
+  ];
+
+  const pricing = [
+    {
+      name: "Starter Site",
+      price: "$1,500",
+      euroPrice: "€1,400",
+      description: "For individuals needing a powerful online presence fast.",
+      features: [
+        "Up to 5 custom pages",
+        "Mobile-first responsive design",
+        "Basic interactivity and transitions",
+        "SEO fundamentals & Analytics",
+        "2 rounds of revisions",
+        "2-week delivery timeline",
+      ]
+    },
+    {
+      name: "Pro Portfolio",
+      price: "$3,000",
+      euroPrice: "€2,800",
+      description: "For professionals requiring advanced features and CMS integration.",
+      features: [
+        "Custom design system",
+        "Advanced animations & micro-interactions",
+        "CMS (Sanity/Contentful) integration",
+        "Comprehensive SEO optimization",
+        "Blog/Case Study functionality",
+        "3-week delivery timeline",
+      ],
+      highlighted: true
+    },
+    {
+      name: "Enterprise Custom",
+      price: "$5,500+",
+      euroPrice: "€5,200+",
+      description: "For growing businesses with complex architecture needs.",
+      features: [
+        "Multi-page, complex architecture",
+        "E-commerce or API integration",
+        "Custom scroll effects & interactions",
+        "A/B testing infrastructure",
+        "Multi-language support (optional)",
+        "Priority 24h support",
+      ]
+    }
+  ];
+
+  // Custom Parallax effect based on scroll
+  const getParallaxTransform = (offsetFactor) => {
+    const scrollOffset = scrollY * offsetFactor;
+    return `translate3d(0, ${scrollOffset}px, 0)`;
+  };
+
+  // Custom mouse parallax effect for an element
+  const getMouseParallaxTransform = (sensitivity) => {
+    if (!heroRef.current) return 'translate3d(0, 0, 0)';
+    const rect = heroRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    const x = (mousePosition.x - centerX) * sensitivity;
+    const y = (mousePosition.y - centerY) * sensitivity;
+    
+    return `translate3d(${x}px, ${y}px, 0)`;
+  };
+
+
+  return (
+    <div className="bg-white text-gray-900 min-h-screen font-sans antialiased relative overflow-hidden">
+      
+      {/* Abstract Grid Background - Static (for cleaner look) */}
+      <div className="fixed inset-0 z-0 opacity-10 pointer-events-none" style={{
+          backgroundImage: `
+            linear-gradient(to right, #ddd 1px, transparent 1px),
+            linear-gradient(to bottom, #ddd 1px, transparent 1px)
+          `,
+          backgroundSize: '40px 40px',
+        }}>
+      </div>
+
+      {/* Navigation - Light theme */}
+      <nav className="fixed top-0 left-0 right-0 z-40 bg-white bg-opacity-95 backdrop-blur-md border-b border-gray-100 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 group">
+            {/* Logo: Star/Flower Icon */}
+            <img src="/noun.svg" alt="RY Dev" className="w-7 h-7 transform group-hover:rotate-180 transition-transform duration-500" />
+            <div className="text-xl font-extrabold tracking-tighter text-gray-900">RY<span className="text-green-500">.</span>DEV</div>
+          </div>
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+            <a href="#work" className="text-gray-500 hover:text-green-500 transition-colors">Work</a>
+            <a href="#process" className="text-gray-500 hover:text-green-500 transition-colors">Process</a>
+            <a href="#pricing" className="text-gray-500 hover:text-green-500 transition-colors">Pricing</a>
+            <a href="#contact" className="px-5 py-2 border-2 border-green-500 text-white bg-green-500 hover:bg-green-600 transition-all font-semibold shadow-lg shadow-green-500/30">
+              Start Project
+            </a>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section - Light & Geometric */}
+      <section ref={heroRef} className="relative pt-32 pb-24 px-6 lg:px-12 max-w-7xl mx-auto min-h-screen flex flex-col justify-center overflow-hidden">
+        
+        {/* Abstract Floating Shapes (Mouse Parallax) */}
+        <div 
+          className="absolute top-[20%] right-[10%] w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl opacity-50 transition-transform duration-500"
+          style={{ transform: getMouseParallaxTransform(-0.01) }}
+        ></div>
+        <div 
+          className="absolute bottom-[10%] left-[5%] w-48 h-12 bg-fuchsia-500/20 transform rotate-12 blur-2xl opacity-50 transition-transform duration-500"
+          style={{ transform: getMouseParallaxTransform(0.015) }}
+        ></div>
+        
+        <div className="relative z-10 text-center lg:text-left">
+          
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-3 flex items-center justify-center lg:justify-start">
+            <Sparkles className="w-4 h-4 mr-2 text-yellow-500" />
+            Next.js & Modern Web Development
+          </p>
+          
+          <h1 className="text-6xl lg:text-8xl font-black leading-tight mb-6 tracking-tighter">
+            Build The <br className="hidden lg:block"/>
+            <span className="text-cyan-500">Exceptional</span> <span className="text-green-500">Website</span>
+          </h1>
+          
+          <p className="text-xl text-gray-600 max-w-4xl mx-auto lg:mx-0 mb-10 leading-relaxed">
+            I craft high-performance, visually stunning portfolios and landing pages. My work is focused on elegant design and clean, conversion-focused code built with **Next.js**.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+            <a 
+              href="#work" 
+              className="group inline-flex items-center gap-2 px-8 py-3 bg-green-500 text-white font-bold hover:bg-green-600 transition-all transform hover:scale-[1.03] shadow-lg shadow-green-500/40"
+            >
+              See Latest Work
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </a>
+            <a 
+              href="#contact" 
+              className="inline-flex items-center gap-2 px-8 py-3 border-2 border-gray-300 text-gray-700 hover:border-cyan-500 hover:text-cyan-500 transition-colors font-medium"
+            >
+              <Mail className="w-5 h-5" />
+              Get a Free Quote
+            </a>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Work Section - Card Hover Effect */}
+      <section id="work" className="relative py-24 px-6 lg:px-12 max-w-7xl mx-auto">
+        <div className="mb-16 text-center">
+          <h2 className="text-4xl lg:text-6xl font-black tracking-tighter mb-4 text-gray-900">
+            Showcase of <span className="text-cyan-500">Precision</span>
+          </h2>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Curated projects demonstrating a blend of creative design and technical mastery using the most modern web stack.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {projects.map((project, index) => (
+            <a 
+              key={index}
+              href={project.link}
+              className={`group relative p-6 border-2 transition-all duration-300 transform hover:-translate-y-1 ${project.color} bg-white shadow-xl shadow-gray-100 hover:shadow-cyan-500/20`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                // Parallax on scroll
+                transform: `translate3d(0, ${clamp(scrollY * (index * 0.05 - 0.1), -50, 50)}px, 0)`
+              }}
+            >
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="md:w-1/3 flex-shrink-0 relative overflow-hidden aspect-[4/3] md:aspect-auto">
+                  <img 
+                    src={project.image} 
+                    alt={project.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className={`absolute inset-0 bg-white opacity-20 group-hover:opacity-0 transition-opacity duration-300`}></div>
+                </div>
+                
+                <div className="md:w-2/3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-3xl font-extrabold mb-1 group-hover:text-green-500 transition-colors">{project.title}</h3>
+                    <ExternalLink className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors" />
+                  </div>
+                  <div className="text-sm text-gray-500 font-medium uppercase tracking-wider">{project.client}</div>
+                  <p className="text-gray-700 leading-relaxed text-sm">{project.description}</p>
+                  
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {project.tech.map((tech, i) => (
+                      <span key={i} className="px-3 py-1 bg-gray-100 border border-gray-200 text-xs font-medium text-gray-600 hover:bg-green-500 hover:text-white transition-colors">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+      
+      {/* Process Section - Abstract Circles */}
+      <section id="process" className="relative py-24 px-6 lg:px-12 bg-gray-50 overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          
+          <div className="mb-16 text-center">
+            <h2 className="text-4xl lg:text-6xl font-black tracking-tighter mb-4 text-gray-900">
+              The <span className="text-fuchsia-500">Structured</span> Approach
+            </h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              A four-step, transparent process ensures your project is delivered with excellence, on time and on budget.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {process.map((step, index) => (
+              <div 
+                key={index}
+                className="group relative p-8 bg-white border border-gray-100 hover:shadow-xl hover:shadow-fuchsia-500/10 transition-all duration-300 transform hover:scale-[1.02]"
+                style={{ 
+                    // Bouncy effect on hover (simulated via transition)
+                    transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                }}
+              >
+                {/* Numbered Step Circle */}
+                <div className={`absolute -top-3 -right-3 w-10 h-10 flex items-center justify-center rounded-full text-white text-lg font-bold shadow-lg 
+                    ${index === 0 && 'bg-fuchsia-500 shadow-fuchsia-500/40'}
+                    ${index === 1 && 'bg-cyan-500 shadow-cyan-500/40'}
+                    ${index === 2 && 'bg-green-500 shadow-green-500/40'}
+                    ${index === 3 && 'bg-yellow-500 shadow-yellow-500/40'}
+                `}>
+                  {index + 1}
+                </div>
+                
+                <div className="mb-5">{step.icon}</div>
+                
+                <div className="text-sm font-bold text-gray-400 mb-1 uppercase tracking-wider">{step.duration}</div>
+                <h3 className="text-2xl font-black mb-3 text-gray-900">{step.title}</h3>
+                <p className="text-gray-600 leading-normal text-sm">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section - Clean, Highlighting USD */}
+      <section id="pricing" className="relative py-24 px-6 lg:px-12 max-w-7xl mx-auto">
+        <div className="mb-16 text-center">
+          <h2 className="text-4xl lg:text-6xl font-black tracking-tighter mb-4 text-gray-900">
+            Investment & <span className="text-green-500">Value</span>
+          </h2>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Choose the clear, fixed-price package that best fits your project goals. All plans include professional setup and support.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {pricing.map((tier, index) => (
+            <div 
+              key={index}
+              className={`relative p-8 border-2 transition-all duration-500 bg-white ${
+                tier.highlighted 
+                  ? 'border-green-500 shadow-2xl shadow-green-500/30 transform scale-[1.02]' 
+                  : 'border-gray-200 hover:border-cyan-500'
+              }`}
+            >
+              {tier.highlighted && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-green-500 text-white text-xs font-bold uppercase tracking-wider shadow-md shadow-green-500/40">
+                  Most Popular
+                </div>
+              )}
+
+              <div className="mb-6">
+                <h3 className="text-2xl font-bold mb-1 text-gray-900">{tier.name}</h3>
+                <div className="text-md text-gray-500">{tier.description}</div>
+              </div>
+
+              <div className="flex items-baseline gap-2 mb-6">
+                <span className="text-5xl font-black text-gray-900">{tier.price}</span>
+                <span className="text-sm text-gray-500 font-medium">/ {tier.euroPrice}</span> {/* Pricing format implemented */}
+              </div>
+
+              <ul className="space-y-3 mb-8">
+                {tier.features.map((feature, i) => (
+                  <li key={i} className="flex items-start gap-3 text-sm">
+                    <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-700">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <a 
+                href="#contact"
+                className={`block text-center py-3 font-semibold transition-all shadow-md ${
+                  tier.highlighted
+                    ? 'bg-green-500 text-white hover:bg-green-600 shadow-green-500/40'
+                    : 'border-2 border-gray-300 text-gray-700 hover:border-cyan-500 hover:text-cyan-500'
+                }`}
+              >
+                Get Started
+              </a>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Contact Section - Clean & Direct */}
+      <section id="contact" className="relative py-24 px-6 lg:px-12 bg-gray-900 text-white">
+        <div className="max-w-4xl mx-auto text-center">
+          
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Mail className="w-5 h-5 text-yellow-500" />
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Connect Today</span>
+          </div>
+          
+          <h2 className="text-5xl lg:text-7xl font-black tracking-tighter mb-6">
+            <span className="text-white">Let's Discuss</span> <br className="hidden sm:block"/>
+            <span className="text-yellow-500">Your Next Idea</span>
+          </h2>
+          
+          <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+            I'm ready to turn your vision into a high-converting digital product. Contact me for a free consultation.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-10">
+            <a 
+              href="mailto:ryan@rydev.fr"
+              className="group inline-flex items-center gap-3 px-8 py-4 bg-yellow-500 text-gray-900 font-bold hover:bg-yellow-400 transition-all transform hover:scale-[1.03] text-lg shadow-xl shadow-yellow-500/40"
+            >
+              <Mail className="w-5 h-5" />
+              ryan@rydev.fr
+            </a>
+            <a 
+              href="https://x.com/ry_devv"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 px-8 py-4 border-2 border-gray-700 text-gray-300 hover:border-yellow-500 hover:text-yellow-500 transition-colors text-lg font-medium"
+            >
+              <svg className="w-6 h-6" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.633L12.601.75Zm-.86 13.028h1.36L4.323 2.145H2.865z" />
+              </svg>
+              @ry_devv
+            </a>
+          </div>
+
+          <div className="text-sm text-gray-600">
+            Available for new projects • 24-hour response guarantee
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="relative py-8 px-6 lg:px-12 border-t border-gray-100 bg-white">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <img src="/noun.svg" alt="RY Dev" className="w-6 h-6" />
+            <div className="text-xl font-extrabold tracking-tighter text-gray-900">RY<span className="text-green-500">.</span>DEV</div>
+          </div>
+          <div className="text-xs text-gray-500">
+            © 2025 RY Dev. Crafted with elegance and speed.
+          </div>
+          <div className="flex items-center gap-4">
+            <a href="https://github.com" className="text-gray-500 hover:text-green-500 transition-colors">
+              <Github className="w-5 h-5" />
+            </a>
+            <a href="https://x.com/ry_devv" className="text-gray-500 hover:text-green-500 transition-colors">
+              <svg className="w-5 h-5" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.633L12.601.75Zm-.86 13.028h1.36L4.323 2.145H2.865z" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </footer>
+
+      <style jsx>{`
+        html {
+          scroll-behavior: smooth;
+        }
+      `}</style>
+    </div>
+  );
+}
