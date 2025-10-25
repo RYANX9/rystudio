@@ -25,8 +25,8 @@ export default function Portfolio() {
     className = '',
     id,
   }) => {
-    const [isVisible, setIsVisible] = useState(false);
     const ref = useRef<HTMLElement>(null);
+    const [isVisible, setIsVisible] = useState(true); // start visible to reduce blinking
 
     useEffect(() => {
       const observer = new IntersectionObserver(
@@ -42,17 +42,13 @@ export default function Portfolio() {
       };
     }, []);
 
-    const revealClass = isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12';
-
     return (
       <section
         ref={ref as React.MutableRefObject<HTMLElement>}
         id={id}
-        className={`min-h-screen relative overflow-hidden flex flex-col justify-center ${className}`}
+        className={`min-h-screen relative flex flex-col justify-center ${className} ${isVisible ? '' : 'opacity-0'}`}
       >
-        <div className={`transition-all duration-1000 ease-out ${revealClass} w-full`}>
-          {children}
-        </div>
+        {children}
       </section>
     );
   };
@@ -62,34 +58,34 @@ export default function Portfolio() {
       title: 'FINTECH DASHBOARD',
       category: 'Web Application',
       year: '2024',
-      description: 'Real-time analytics dashboard with dark mode. Smooth 60fps transitions.',
+      description: 'Real-time analytics dashboard with dark mode.',
       image: '/projects/fintech-dashboard.jpg',
     },
     {
       title: 'LUXURY E-COMMERCE',
       category: 'Landing Page',
       year: '2024',
-      description: 'High-converting product landing page. Mobile-first, sub-2s load time.',
+      description: 'High-converting product landing page. Mobile-first, fast load.',
       image: '/projects/luxury-ecommerce.jpg',
     },
     {
       title: 'FOUNDER PORTFOLIO',
       category: 'Personal Brand',
       year: '2024',
-      description: 'Minimalistic personal brand site with smooth parallax storytelling.',
+      description: 'Minimalistic personal brand site with clean storytelling.',
       image: '/projects/founder-portfolio.jpg',
     },
     {
       title: 'SAAS PRODUCT SITE',
       category: 'Marketing Site',
       year: '2023',
-      description: 'Marketing site with A/B optimized sections. 35% conversion increase.',
+      description: 'Marketing site optimized for clarity and conversion.',
       image: '/projects/saas-site.jpg',
     },
   ];
 
   useEffect(() => {
-    const interval = setInterval(() => setCurrentSlide((prev) => (prev + 1) % showcases.length), 5000);
+    const interval = setInterval(() => setCurrentSlide((prev) => (prev + 1) % showcases.length), 7000);
     return () => clearInterval(interval);
   }, [showcases.length]);
 
@@ -99,18 +95,18 @@ export default function Portfolio() {
 
   return (
     <main className="min-h-screen bg-black text-white font-mono antialiased overflow-x-hidden">
-      {/* Ambient cursor glow */}
+      {/* Cursor glow */}
       <div
-        className="fixed inset-0 pointer-events-none z-50 opacity-20 transition-opacity duration-300"
+        className="fixed inset-0 pointer-events-none z-50 opacity-10"
         style={{
-          background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255,255,255,0.06), transparent 40%)`,
+          background: `radial-gradient(500px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255,255,255,0.05), transparent 40%)`,
         }}
       />
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 p-6 sm:p-8 flex justify-between items-center backdrop-blur-md bg-black/30">
+      <header className="fixed top-0 left-0 right-0 z-40 p-6 sm:p-8 flex justify-between items-center backdrop-blur-sm bg-black/30">
         <div className="flex items-center space-x-3 text-xl sm:text-2xl font-bold tracking-wider">
-          <div className="transition-all duration-700 ease-out" style={{ transform: `rotate(${scrollPosition * 0.05}deg)` }}>
+          <div className="transition-transform" style={{ transform: `rotate(${scrollPosition * 0.05}deg)` }}>
             <Image src="/noun.svg" alt="Ry Studio Logo" width={44} height={44} className="opacity-90" />
           </div>
           <span className="hidden sm:inline opacity-90">RY STUDIO</span>
@@ -118,7 +114,7 @@ export default function Portfolio() {
         <nav>
           <a
             href="#contact"
-            className="text-xs sm:text-sm uppercase tracking-widest border border-white/30 px-4 py-2 sm:px-5 sm:py-2 hover:border-white hover:bg-white/10 transition-all duration-500"
+            className="text-xs sm:text-sm uppercase tracking-widest border border-white/30 px-4 py-2 sm:px-5 sm:py-2 hover:border-white hover:bg-white/10 transition-all duration-300"
           >
             Let's Talk
           </a>
@@ -127,33 +123,28 @@ export default function Portfolio() {
 
       {/* Hero Section */}
       <section id="hero" className="min-h-screen flex items-center justify-center relative overflow-hidden">
-        {/* Parallax background */}
         <div
-          className="absolute inset-0 z-0 bg-cover bg-center transform-gpu"
+          className="absolute inset-0 z-0 bg-cover bg-center"
           style={{
             backgroundImage: `url('/hero-background.jpg')`,
-            opacity: Math.max(0.3, 1 - scrollPosition / 1200),
-            transform: `scale(1.08) translateY(${scrollPosition * 0.35}px)`,
-            transition: 'transform 0.2s ease-out, opacity 0.3s ease-out',
+            transform: `translateY(${scrollPosition * 0.25}px) scale(1.05)`,
           }}
         >
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-black/70" />
         </div>
 
         <div className="z-20 text-center px-6 sm:px-8">
-          <h1 className="text-6xl sm:text-8xl md:text-[11rem] font-extrabold tracking-tighter leading-[0.9] mb-6 sm:mb-8">
+          <h1 className="text-6xl sm:text-8xl md:text-[9rem] font-extrabold tracking-tight leading-tight mb-6 sm:mb-8">
             PREMIUM
             <br />
             WEB DESIGN
           </h1>
-          <p className="mt-6 sm:mt-8 text-base sm:text-2xl font-light text-white/80 max-w-xl sm:max-w-4xl mx-auto tracking-wide">
+          <p className="mt-4 sm:mt-6 text-base sm:text-2xl font-light text-white/80 max-w-xl sm:max-w-4xl mx-auto tracking-wide">
             Exclusive landing pages, portfolios, and custom websites.
-            <br className="hidden sm:block" />
-            Limited availability.
           </p>
           <a
             href="#work"
-            className="mt-10 sm:mt-14 inline-block text-base sm:text-xl tracking-widest border-b-2 border-white/40 pb-1 hover:border-white transition-all duration-700 opacity-80 hover:opacity-100"
+            className="mt-8 sm:mt-10 inline-block text-base sm:text-xl tracking-widest border-b-2 border-white/40 pb-1 hover:border-white transition-all duration-500"
           >
             View Selected Work
           </a>
@@ -162,34 +153,19 @@ export default function Portfolio() {
 
       {/* Services Section */}
       <AnimatedSection className="bg-neutral-950 text-white p-10 sm:p-20">
-        <div className="max-w-6xl mx-auto">
-          <span className="text-sm sm:text-base uppercase tracking-widest text-white/50 block mb-6 sm:mb-8">What I Do</span>
-          <h2 className="text-4xl sm:text-6xl md:text-8xl font-bold leading-tight mb-10 sm:mb-16">
-            Three Services.
-            <br />
-            One Standard.
-          </h2>
+        <div className="max-w-6xl mx-auto text-center">
+          <span className="text-sm sm:text-base uppercase tracking-widest text-white/50 block mb-6">What I Do</span>
+          <h2 className="text-4xl sm:text-6xl md:text-8xl font-bold leading-tight mb-10">Three Services. One Standard.</h2>
 
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-10 sm:gap-14">
             {[
-              {
-                title: 'Landing Pages',
-                desc: 'High-converting pages designed to capture attention instantly. Built for speed, optimized for conversions.',
-              },
-              {
-                title: 'Portfolios',
-                desc: 'Personal brands that position you as the obvious choice. Your story, told with precision and style.',
-              },
-              {
-                title: 'Custom Websites',
-                desc: 'Fully bespoke digital experiences. From concept to launch, tailored to your exact vision.',
-              },
-            ].map((service, i) => (
-              <div key={i} className="group">
-                <h3 className="text-2xl sm:text-3xl font-semibold mb-3 sm:mb-4 pb-2 border-b border-white/20 group-hover:border-white transition-all duration-700">
-                  {`0${i + 1}. ${service.title}`}
-                </h3>
-                <p className="text-base sm:text-xl text-white/70 leading-relaxed">{service.desc}</p>
+              { title: 'Landing Pages', desc: 'High-converting pages optimized for clarity and speed.' },
+              { title: 'Portfolios', desc: 'Personal brands that stand out and tell your story cleanly.' },
+              { title: 'Custom Websites', desc: 'Tailored experiences built for your vision.' },
+            ].map((s, i) => (
+              <div key={i}>
+                <h3 className="text-2xl sm:text-3xl font-semibold mb-3 border-b border-white/20">{`0${i + 1}. ${s.title}`}</h3>
+                <p className="text-base sm:text-lg text-white/70 leading-relaxed">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -199,72 +175,40 @@ export default function Portfolio() {
       {/* Showcase Section */}
       <AnimatedSection id="work" className="bg-black text-white p-10 sm:p-20">
         <div className="max-w-7xl mx-auto">
-          <span className="text-sm sm:text-base uppercase tracking-widest text-white/50 block mb-6 sm:mb-8">Selected Work</span>
-          <h2 className="text-4xl sm:text-6xl md:text-8xl font-bold leading-tight mb-10 sm:mb-16">Recent Projects.</h2>
+          <span className="text-sm sm:text-base uppercase tracking-widest text-white/50 block mb-6">Selected Work</span>
+          <h2 className="text-4xl sm:text-6xl md:text-8xl font-bold leading-tight mb-10">Recent Projects</h2>
 
-          <div className="relative">
-            {/* Slide Container */}
-            <div className="overflow-hidden">
-              <div
-                className="flex transition-transform duration-[1200ms] ease-in-out"
-                style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-              >
-                {showcases.map((project, index) => (
-                  <div key={index} className="min-w-full px-2 sm:px-4">
-                    <div className="border border-white/20 p-8 sm:p-12 md:p-16 min-h-[500px] sm:min-h-[600px] flex flex-col justify-between backdrop-blur-sm bg-neutral-950/80 hover:border-white/40 transition-all duration-700">
-                      <div>
-                        <div className="flex items-center gap-4 mb-4 text-xs sm:text-sm tracking-widest text-white/40 uppercase">
-                          <span>{project.year}</span>
-                          <span>—</span>
-                          <span>{project.category}</span>
-                        </div>
-                        <h3 className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight mb-6 sm:mb-8 leading-[0.95]">
-                          {project.title}
-                        </h3>
-                        <p className="text-lg sm:text-2xl text-white/70 max-w-2xl leading-relaxed">{project.description}</p>
+          <div className="relative overflow-hidden">
+            <div
+              className="flex transition-transform duration-[800ms] ease-out"
+              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+            >
+              {showcases.map((p, i) => (
+                <div key={i} className="min-w-full px-2 sm:px-4">
+                  <div className="border border-white/10 p-8 sm:p-12 min-h-[500px] sm:min-h-[600px] flex flex-col justify-between bg-neutral-950/80">
+                    <div>
+                      <div className="flex items-center gap-4 mb-4 text-xs sm:text-sm text-white/40 uppercase">
+                        <span>{p.year}</span> — <span>{p.category}</span>
                       </div>
-                      <div
-                        className="mt-8 sm:mt-12 h-56 sm:h-80 bg-neutral-900 bg-cover bg-center border border-white/10 transition-all duration-700 hover:border-white/30"
-                        style={{
-                          backgroundImage: `url(${project.image})`,
-                          backgroundBlendMode: 'luminosity',
-                        }}
-                      />
+                      <h3 className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight mb-6">{p.title}</h3>
+                      <p className="text-lg sm:text-2xl text-white/70">{p.description}</p>
                     </div>
+                    <div
+                      className="mt-8 sm:mt-12 h-56 sm:h-80 bg-neutral-900 bg-cover bg-center border border-white/10"
+                      style={{ backgroundImage: `url(${p.image})` }}
+                    />
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Navigation Arrows */}
-            <button
-              onClick={prevSlide}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 sm:-translate-x-8 w-12 h-12 sm:w-16 sm:h-16 border border-white/30 hover:border-white hover:bg-white/10 transition-all duration-500 flex items-center justify-center text-xl sm:text-2xl"
-              aria-label="Previous slide"
-            >
-              ←
-            </button>
-            <button
-              onClick={nextSlide}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 sm:translate-x-8 w-12 h-12 sm:w-16 sm:h-16 border border-white/30 hover:border-white hover:bg-white/10 transition-all duration-500 flex items-center justify-center text-xl sm:text-2xl"
-              aria-label="Next slide"
-            >
-              →
-            </button>
-
-            {/* Slide Indicators */}
-            <div className="flex justify-center gap-3 mt-10 sm:mt-14">
-              {showcases.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => goToSlide(index)}
-                  className={`h-[2px] transition-all duration-700 ease-out ${
-                    currentSlide === index ? 'w-14 bg-white' : 'w-8 bg-white/40 hover:bg-white/60 hover:w-10'
-                  }`}
-                  aria-label={`Go to slide ${index + 1}`}
-                />
+                </div>
               ))}
             </div>
+
+            {/* Navigation */}
+            <button onClick={prevSlide} className="absolute left-0 top-1/2 -translate-y-1/2 px-3 py-2 sm:px-5 sm:py-3 border border-white/20 hover:border-white hover:bg-white/10 transition duration-300">
+              ←
+            </button>
+            <button onClick={nextSlide} className="absolute right-0 top-1/2 -translate-y-1/2 px-3 py-2 sm:px-5 sm:py-3 border border-white/20 hover:border-white hover:bg-white/10 transition duration-300">
+              →
+            </button>
           </div>
         </div>
       </AnimatedSection>
@@ -272,23 +216,17 @@ export default function Portfolio() {
       {/* Contact Section */}
       <AnimatedSection className="bg-neutral-950 text-white p-10 sm:p-20" id="contact">
         <div className="text-center max-w-5xl mx-auto">
-          <h2 className="text-5xl sm:text-7xl md:text-9xl font-bold tracking-tighter leading-[0.9] mb-6 sm:mb-10">
+          <h2 className="text-5xl sm:text-7xl md:text-9xl font-bold tracking-tight leading-tight mb-6">
             LET'S BUILD
             <br />
             SOMETHING RARE.
           </h2>
-          <p className="text-base sm:text-2xl font-light text-white/70 mb-8 sm:mb-12 leading-relaxed max-w-3xl mx-auto">
+          <p className="text-base sm:text-2xl text-white/70 mb-8 leading-relaxed max-w-3xl mx-auto">
             I take on a limited number of projects each month. If you're serious about standing out, let's talk.
           </p>
-          <a
-            href="mailto:inquire@rystudio.com"
-            className="inline-block text-base sm:text-xl uppercase tracking-widest bg-white text-black px-8 sm:px-10 py-3 sm:py-4 hover:bg-white/90 transition-all duration-700 font-semibold"
-          >
+          <a href="mailto:inquire@rystudio.com" className="inline-block text-base sm:text-xl uppercase tracking-widest bg-white text-black px-8 py-3 sm:px-10 sm:py-4 font-semibold hover:bg-white/90 transition duration-500">
             Start a Conversation
           </a>
-          <p className="mt-8 sm:mt-10 text-sm sm:text-base text-white/50">
-            Investment: $3,000 - $12,000 · Timeline: 2-4 weeks
-          </p>
         </div>
       </AnimatedSection>
 
@@ -297,12 +235,7 @@ export default function Portfolio() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
           <p>&copy; {new Date().getFullYear()} Ry Studio. Crafted with obsession.</p>
           <div className="flex flex-col sm:flex-row sm:space-x-8 items-center gap-2 sm:gap-0">
-            <a
-              href="https://twitter.com/yourhandle"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-white transition-colors duration-500"
-            >
+            <a href="https://twitter.com/yourhandle" target="_blank" rel="noopener noreferrer" className="hover:text-white transition duration-300">
               X/Twitter
             </a>
             <p className="text-xs sm:text-sm">Built with Next.js · Deployed on Vercel</p>
