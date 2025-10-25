@@ -19,7 +19,8 @@ export default function RyStudio() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
       
-    const handleMouseMove = (e) => {
+    // FIX APPLIED: Explicitly type 'e' as MouseEvent to resolve the 'implicit any' error.
+    const handleMouseMove = (e: MouseEvent) => {
       setCursorPos({ x: e.clientX, y: e.clientY });
     };
       
@@ -96,12 +97,12 @@ export default function RyStudio() {
               }}
             >
               <div className="w-full h-full bg-[#151515] relative overflow-hidden"
-                   style={{ transform: isMobile ? 'none' : 'perspective(1000px) rotateX(2deg) rotateY(-2deg)' }}>
+                  style={{ transform: isMobile ? 'none' : 'perspective(1000px) rotateX(2deg) rotateY(-2deg)' }}>
                 <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[#00F0FF]/20 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500" />
                 
                 {/* Code Background */}
                 <div className="absolute inset-0 p-4 md:p-6 font-mono text-[6px] md:text-[8px] text-[#404040] leading-relaxed opacity-30">
-                  {`const checkout = () => {\n  const [cart, setCart] = useState([]);\n  return <PaymentForm />;\n}`}
+                  {`const checkout = () => {\n \tconst [cart, setCart] = useState([]);\n \treturn <PaymentForm />;\n}`}
                 </div>
                 
                 <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 z-10">
@@ -115,10 +116,10 @@ export default function RyStudio() {
 
             {/* About Section - Embedded in Grid */}
             <div className="md:col-span-3 aspect-[3/4] bg-[#FAFAFA] text-[#0A0A0A] p-6 md:p-8 flex flex-col justify-between"
-                 style={{ 
-                   transform: isMobile ? 'none' : `translateY(${scrollY * 0.1}px)`,
-                   transition: 'transform 0.1s linear'
-                 }}>
+                style={{ 
+                    transform: isMobile ? 'none' : `translateY(${scrollY * 0.1}px)`,
+                    transition: 'transform 0.1s linear'
+                  }}>
               <div>
                 <div className="text-[8px] md:text-[10px] tracking-[0.3em] uppercase opacity-40 mb-3 md:mb-4">Portfolio Designer</div>
                 <h2 className="text-3xl md:text-5xl font-black mb-4 md:mb-6 leading-[0.9]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
@@ -153,7 +154,7 @@ export default function RyStudio() {
               <div className="w-full h-full bg-[#151515] relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-tl from-transparent to-[#CCFF00]/20 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500" />
                 <div className="absolute inset-0 p-4 md:p-6 font-mono text-[6px] md:text-[8px] text-[#404040] leading-relaxed opacity-30">
-                  {`useEffect(() => {\n  fetchData();\n}, [deps]);`}
+                  {`useEffect(() => {\n \tfetchData();\n}, [deps]);`}
                 </div>
                 <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 z-10">
                   <h3 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
