@@ -67,57 +67,6 @@ export default () => {
     );
   };
 
-  const TypewriterText: React.FC<{ text: string; delay?: number; className?: string }> = ({
-    text,
-    delay = 0,
-    className = '',
-  }) => {
-    const [displayText, setDisplayText] = useState('');
-    const [isVisible, setIsVisible] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setIsVisible(true);
-        },
-        { threshold: 0.3 }
-      );
-
-      if (ref.current) observer.observe(ref.current);
-      return () => {
-        if (ref.current) observer.unobserve(ref.current);
-      };
-    }, []);
-
-    useEffect(() => {
-      if (!isVisible) return;
-
-      let currentIndex = 0;
-      const timeout = setTimeout(() => {
-        const interval = setInterval(() => {
-          if (currentIndex <= text.length) {
-            setDisplayText(text.slice(0, currentIndex));
-            currentIndex++;
-          } else {
-            clearInterval(interval);
-          }
-        }, 30);
-
-        return () => clearInterval(interval);
-      }, delay);
-
-      return () => clearTimeout(timeout);
-    }, [isVisible, text, delay]);
-
-    return (
-      <div ref={ref} className={className}>
-        {displayText}
-        <span className="inline-block w-1 h-[0.8em] bg-current ml-1 animate-pulse" />
-      </div>
-    );
-  };
-
   const FadeInText: React.FC<{
     children: React.ReactNode;
     delay?: number;
@@ -154,7 +103,6 @@ export default () => {
     );
   };
 
-  // Showcase data
   const showcases = [
     {
       title: 'FINTECH DASHBOARD',
@@ -193,8 +141,31 @@ export default () => {
     setCurrentSlide(index);
   };
 
+  // Interpolated black-white transition helper
+  const getSmoothBackground = (scroll: number) => {
+    const sections = [0, 900, 1800, 2700];
+    const colors = ['#000000', '#f5f5f5', '#000000', '#f5f5f5'];
+    let bg = colors[0];
+    for (let i = 0; i < sections.length - 1; i++) {
+      if (scroll >= sections[i] && scroll < sections[i + 1]) {
+        const t = (scroll - sections[i]) / (sections[i + 1] - sections[i]);
+        const c0 = parseInt(colors[i].slice(1), 16);
+        const c1 = parseInt(colors[i + 1].slice(1), 16);
+        const r = Math.round(((c1 >> 16) & 0xff) * t + ((c0 >> 16) & 0xff) * (1 - t));
+        const g = Math.round(((c1 >> 8) & 0xff) * t + ((c0 >> 8) & 0xff) * (1 - t));
+        const b = Math.round((c1 & 0xff) * t + (c0 & 0xff) * (1 - t));
+        bg = `rgb(${r},${g},${b})`;
+        break;
+      }
+    }
+    return bg;
+  };
+
   return (
-    <main className="min-h-screen bg-black text-white font-mono antialiased overflow-x-hidden">
+    <main
+      className="min-h-screen font-mono antialiased overflow-x-hidden transition-colors duration-700"
+      style={{ backgroundColor: getSmoothBackground(scrollPosition) }}
+    >
       {/* Ambient cursor glow */}
       <div
         className="fixed inset-0 pointer-events-none z-50 opacity-30 transition-opacity duration-300"
@@ -204,7 +175,7 @@ export default () => {
       />
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 p-4 sm:p-8 flex justify-between items-center">
+      <header className="fixed top-0 left-0 right-0 z-40 p-4 sm:p-8 flex justify-between items-center transition-colors duration-700">
         <div className="flex items-center space-x-2 sm:space-x-3 text-lg sm:text-xl font-bold tracking-wider">
           <div
             className="transition-all duration-700 ease-out"
@@ -215,7 +186,7 @@ export default () => {
               alt="Ry Studio Logo"
               width={40}
               height={40}
-              className="invert-0 dark:invert opacity-90"
+              className={`invert-0 dark:invert opacity-90 transition-colors duration-700`}
             />
           </div>
           <span className="hidden sm:inline opacity-90">RY STUDIO</span>
@@ -237,23 +208,28 @@ export default () => {
       >
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-neutral-900/60 to-black z-10" />
-        
+
         {/* Parallax background */}
         <div
-          className="absolute inset-0 z-0 bg-cover bg-center"
+          className="absolute inset-0 z-0 bg-cover bg-center transition-transform duration-700 ease-out"
           style={{
             backgroundImage: `url('/placeholder-background.jpg')`,
-            opacity: Math.max(0.3, 1 - scrollPosition / 1200),
             transform: `scale(1.05) translateY(${scrollPosition * 0.4}px)`,
-            transition: 'transform 0.1s ease-out',
+            opacity: Math.max(0.4, 1 - scrollPosition / 1200),
           }}
         >
-          <div className="absolute inset-0 bg-neutral-900/70 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-neutral-900/60 backdrop-blur-[2px]" />
         </div>
 
-        {/* Subtle grain texture */}
+        {/* Grain overlay */}
         <div className="absolute inset-0 z-10 opacity-[0.015] mix-blend-overlay pointer-events-none">
-          <div className="w-full h-full" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 400 400\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }} />
+          <div
+            className="w-full h-full"
+            style={{
+              backgroundImage:
+                'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 400 400\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
+            }}
+          />
         </div>
 
         <div className="z-20 text-center px-4 sm:px-8">
@@ -264,13 +240,13 @@ export default () => {
               WEB DESIGN
             </h1>
           </FadeInText>
-          
+
           <FadeInText delay={600} className="mt-4 sm:mt-6">
             <p className="text-sm sm:text-xl font-light text-neutral-300 max-w-md sm:max-w-3xl mx-auto tracking-widest uppercase opacity-80">
               Exclusive landing pages, portfolios, and custom websites. Limited slots available.
             </p>
           </FadeInText>
-          
+
           <FadeInText delay={1000}>
             <a
               href="#work"
@@ -282,18 +258,16 @@ export default () => {
         </div>
       </section>
 
-      {/* Smooth transition spacer */}
-      <div className="h-24 sm:h-32 bg-gradient-to-b from-black to-white" />
-
+      {/* Sections and showcase remain unchanged except black-white transitions now use smooth background */}
       {/* What I Do */}
-      <AnimatedSection index={1} className="bg-white text-black p-8 sm:p-16">
+      <AnimatedSection index={1} className="bg-transparent text-black p-8 sm:p-16">
         <div className="max-w-6xl mx-auto">
           <FadeInText delay={0}>
             <span className="text-xs sm:text-sm uppercase tracking-widest text-neutral-500 block mb-4 sm:mb-6">
               What You Get
             </span>
           </FadeInText>
-          
+
           <FadeInText delay={200}>
             <h2 className="text-3xl sm:text-5xl md:text-7xl font-bold leading-tight mb-8 sm:mb-12">
               Three Services.
@@ -301,63 +275,43 @@ export default () => {
               One Standard.
             </h2>
           </FadeInText>
-          
+
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-12">
-            <FadeInText delay={400}>
-              <div className="group">
-                <h3 className="text-xl sm:text-2xl font-semibold mb-2 sm:mb-3 pb-1 sm:pb-2 border-b border-black/20 group-hover:border-black transition-all duration-700">
-                  01. Landing Pages
-                </h3>
-                <p className="text-sm sm:text-lg text-neutral-700 leading-relaxed">
-                  High-converting pages designed to capture attention instantly. Built for speed, optimized for results.
-                </p>
-              </div>
-            </FadeInText>
-            
-            <FadeInText delay={600}>
-              <div className="group">
-                <h3 className="text-xl sm:text-2xl font-semibold mb-2 sm:mb-3 pb-1 sm:pb-2 border-b border-black/20 group-hover:border-black transition-all duration-700">
-                  02. Portfolios
-                </h3>
-                <p className="text-sm sm:text-lg text-neutral-700 leading-relaxed">
-                  Personal brands that position you as the obvious choice. Your story, told with precision and style.
-                </p>
-              </div>
-            </FadeInText>
-            
-            <FadeInText delay={800}>
-              <div className="group">
-                <h3 className="text-xl sm:text-2xl font-semibold mb-2 sm:mb-3 pb-1 sm:pb-2 border-b border-black/20 group-hover:border-black transition-all duration-700">
-                  03. Custom Websites
-                </h3>
-                <p className="text-sm sm:text-lg text-neutral-700 leading-relaxed">
-                  Fully bespoke digital experiences. From concept to launch, tailored to your exact vision.
-                </p>
-              </div>
-            </FadeInText>
+            {['Landing Pages', 'Portfolios', 'Custom Websites'].map((service, idx) => (
+              <FadeInText key={service} delay={400 + idx * 200}>
+                <div className="group">
+                  <h3 className="text-xl sm:text-2xl font-semibold mb-2 sm:mb-3 pb-1 sm:pb-2 border-b border-black/20 group-hover:border-black transition-all duration-700">
+                    0{idx + 1}. {service}
+                  </h3>
+                  <p className="text-sm sm:text-lg text-neutral-700 leading-relaxed">
+                    {service === 'Landing Pages'
+                      ? 'High-converting pages designed to capture attention instantly. Built for speed, optimized for results.'
+                      : service === 'Portfolios'
+                      ? 'Personal brands that position you as the obvious choice. Your story, told with precision and style.'
+                      : 'Fully bespoke digital experiences. From concept to launch, tailored to your exact vision.'}
+                  </p>
+                </div>
+              </FadeInText>
+            ))}
           </div>
         </div>
       </AnimatedSection>
 
-      {/* Smooth transition spacer */}
-      <div className="h-24 sm:h-32 bg-gradient-to-b from-white to-black" />
-
-      {/* Showcase Section - Horizontal Slideshow */}
-      <AnimatedSection index={2} id="work" className="bg-black text-white p-8 sm:p-16">
+      {/* Showcase Section */}
+      <AnimatedSection index={2} id="work" className="bg-transparent text-white p-8 sm:p-16">
         <div className="max-w-7xl mx-auto">
           <FadeInText delay={0}>
             <span className="text-xs sm:text-sm uppercase tracking-widest text-neutral-500 block mb-4 sm:mb-6">
               Selected Work
             </span>
           </FadeInText>
-          
+
           <FadeInText delay={200}>
             <h2 className="text-3xl sm:text-5xl md:text-7xl font-bold leading-tight mb-8 sm:mb-12">
               Recent Projects.
             </h2>
           </FadeInText>
 
-          {/* Horizontal Slideshow */}
           <div className="relative overflow-hidden">
             <div
               className="flex transition-transform duration-[1200ms] ease-in-out"
@@ -413,13 +367,11 @@ export default () => {
         </div>
       </AnimatedSection>
 
-      {/* Smooth transition spacer */}
-      <div className="h-24 sm:h-32 bg-gradient-to-b from-black to-white" />
-
       {/* Contact Section */}
       <section
         id="contact"
-        className="min-h-[70vh] flex items-center justify-center bg-white text-black p-8 sm:p-16"
+        className="min-h-[70vh] flex items-center justify-center p-8 sm:p-16"
+        style={{ backgroundColor: '#f5f5f5', color: '#000000' }}
       >
         <div className="text-center max-w-4xl mx-auto">
           <FadeInText delay={0}>
@@ -429,13 +381,13 @@ export default () => {
               SOMETHING RARE.
             </h2>
           </FadeInText>
-          
+
           <FadeInText delay={300}>
             <p className="text-sm sm:text-xl font-light text-neutral-700 mb-6 sm:mb-10 leading-relaxed">
               I respond to every inquiry within 24 hours. Limited slots available each month.
             </p>
           </FadeInText>
-          
+
           <FadeInText delay={600}>
             <a
               href="mailto:inquire@rystudio.com"
@@ -444,7 +396,7 @@ export default () => {
               Start a Conversation
             </a>
           </FadeInText>
-          
+
           <FadeInText delay={900}>
             <p className="mt-6 sm:mt-8 text-xs sm:text-sm text-neutral-600 opacity-70">
               Investment: $3,000 - $12,000 | Timeline: 2-4 weeks
@@ -454,8 +406,8 @@ export default () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-white text-neutral-500 p-4 sm:p-8 text-xs sm:text-sm border-t border-neutral-200">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0 opacity-70">
+      <footer className="p-4 sm:p-8 text-xs sm:text-sm border-t border-neutral-200 opacity-70">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
           <p>&copy; {new Date().getFullYear()} Ry Studio. Crafted with obsession.</p>
           <div className="flex flex-col sm:flex-row sm:space-x-6 items-center">
             <a
@@ -473,3 +425,4 @@ export default () => {
     </main>
   );
 };
+                            
