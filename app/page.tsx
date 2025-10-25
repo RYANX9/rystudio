@@ -1,277 +1,230 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 
-export default function Portfolio() {
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-
-  const handleScroll = useCallback(() => setScrollPosition(window.pageYOffset), []);
-  const handleMouseMove = useCallback((e: MouseEvent) => setMousePosition({ x: e.clientX, y: e.clientY }), []);
-
+export default function RyStudio() {
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const [hoveredProject, setHoveredProject] = useState(null);
+  const [scrollY, setScrollY] = useState(0);
+  const [activeAccent, setActiveAccent] = useState('#00F0FF');
+  
   useEffect(() => {
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('mousemove', handleMouseMove);
+    const handleMouseMove = (e) => {
+      setCursorPos({ x: e.clientX, y: e.clientY });
     };
-  }, [handleScroll, handleMouseMove]);
+    
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('scroll', handleScroll);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
-  const AnimatedSection: React.FC<{ children: React.ReactNode; className?: string; id?: string }> = ({
-    children,
-    className = '',
-    id,
-  }) => {
-    const ref = useRef<HTMLElement>(null);
-    const [isVisible, setIsVisible] = useState(false);
-
-    useEffect(() => {
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setIsVisible(true);
-        },
-        { rootMargin: '0px', threshold: 0.1 }
-      );
-      if (ref.current) observer.observe(ref.current);
-      return () => {
-        if (ref.current) observer.unobserve(ref.current);
-      };
-    }, []);
-
-    return (
-      <section
-        ref={ref as React.MutableRefObject<HTMLElement>}
-        id={id}
-        className={`min-h-screen relative flex flex-col justify-center ${className} ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'} transition-all duration-700`}
-      >
-        {children}
-      </section>
-    );
-  };
-
-  const showcases = [
-    {
-      title: 'FINTECH DASHBOARD',
-      category: 'Web Application',
-      year: '2024',
-      description: 'Real-time analytics dashboard with dark mode.',
-      image: '/projects/fintech-dashboard.jpg',
-    },
-    {
-      title: 'LUXURY E-COMMERCE',
-      category: 'Landing Page',
-      year: '2024',
-      description: 'High-converting landing page optimized for mobile-first experience.',
-      image: '/projects/luxury-ecommerce.jpg',
-    },
-    {
-      title: 'FOUNDER PORTFOLIO',
-      category: 'Personal Brand',
-      year: '2024',
-      description: 'Minimalistic personal brand site with storytelling animations.',
-      image: '/projects/founder-portfolio.jpg',
-    },
-    {
-      title: 'SAAS PRODUCT SITE',
-      category: 'Marketing Site',
-      year: '2023',
-      description: 'Marketing site with clear CTA hierarchy and smooth UX.',
-      image: '/projects/saas-site.jpg',
-    },
+  const projects = [
+    { id: 1, title: 'E-Commerce Platform', code: 'const checkout = () => {...}', tech: 'Next.js 15 · Stripe', color: '#00F0FF' },
+    { id: 2, title: 'SaaS Dashboard', code: 'useEffect(() => {...}', tech: 'React · Tailwind', color: '#CCFF00' },
+    { id: 3, title: 'Portfolio CMS', code: 'export default async', tech: 'Next.js · Vercel', color: '#FF006E' },
+    { id: 4, title: 'API Gateway', code: 'fetch("/api/...")', tech: 'Node.js · Edge', color: '#8B00FF' },
   ];
 
   return (
-    <main className="min-h-screen bg-black text-white font-mono antialiased overflow-x-hidden relative">
-      {/* Cursor glow */}
-      <div
-        className="fixed inset-0 pointer-events-none z-50 opacity-10"
-        style={{
-          background: `radial-gradient(500px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255,255,255,0.05), transparent 40%)`,
-        }}
-      />
-
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 p-6 sm:p-8 flex justify-between items-center backdrop-blur-sm bg-black/30">
-        <div className="flex items-center space-x-3 text-xl sm:text-2xl font-bold tracking-wider">
-          <div className="transition-transform" style={{ transform: `rotate(${scrollPosition * 0.05}deg)` }}>
-            <Image
-              src="/noun.svg"
-              alt="Ry Studio Logo"
-              width={44}
-              height={44}
-              className="opacity-100 invert"
-            />
+    <div className="min-h-screen bg-[#0A0A0A] text-[#FAFAFA] overflow-x-hidden font-sans">
+      
+      {/* BREAKING THE RULES: Projects First - No Traditional Hero */}
+      <section className="relative min-h-screen pt-20 pb-32">
+        
+        {/* Floating Header - Not Fixed, Flows With Content */}
+        <div className="absolute top-8 left-0 right-0 px-8 z-50">
+          <div className="max-w-7xl mx-auto flex justify-between items-start">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-[#FAFAFA] rounded-sm rotate-45" />
+              <div className="font-mono text-xs tracking-widest opacity-60">RY_STUDIO</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] tracking-[0.3em] uppercase opacity-40 mb-1">Available for Work</div>
+              <div className="text-xs font-mono" style={{ color: activeAccent }}>●_ONLINE</div>
+            </div>
           </div>
-          <span className="hidden sm:inline opacity-100">RY STUDIO</span>
-        </div>
-        <nav>
-          <a
-            href="#contact"
-            className="text-xs sm:text-sm uppercase tracking-widest border border-white/30 px-4 py-2 sm:px-5 sm:py-2 hover:border-white hover:bg-white/10 transition-all duration-300"
-          >
-            Let's Talk
-          </a>
-        </nav>
-      </header>
-
-      {/* Hero Section */}
-      <section id="hero" className="min-h-screen flex items-center justify-center relative overflow-hidden">
-        <div
-          className="absolute inset-0 z-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/hero-background.jpg')`,
-            transform: `translateY(${scrollPosition * 0.25}px) scale(1.05)`,
-          }}
-        >
-          <div className="absolute inset-0 bg-black/70" />
         </div>
 
-        <div className="z-20 text-center px-6 sm:px-8">
-          <motion.h1
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
-            className="text-6xl sm:text-8xl md:text-[9rem] font-extrabold tracking-tight leading-tight mb-6 sm:mb-8"
-          >
-            PREMIUM
-            <br />
-            WEB DESIGN
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1.2, delay: 0.5 }}
-            className="mt-4 sm:mt-6 text-base sm:text-2xl font-light text-white/80 max-w-xl sm:max-w-4xl mx-auto tracking-wide"
-          >
-            Exclusive landing pages, portfolios, and custom websites.
-          </motion.p>
-          <motion.a
-            href="#work"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.8 }}
-            className="mt-8 sm:mt-10 inline-block text-base sm:text-xl tracking-widest border-b-2 border-white/40 pb-1 hover:border-white transition-all duration-500"
-          >
-            View Selected Work
-          </motion.a>
+        {/* Projects Grid - Immediate Impact */}
+        <div className="max-w-7xl mx-auto px-8 mt-24">
+          <div className="grid grid-cols-7 gap-6">
+            
+            {/* Project 1 - Large Span */}
+            <div 
+              className="col-span-4 aspect-[4/3] group cursor-pointer relative"
+              onMouseEnter={() => { setHoveredProject(1); setActiveAccent('#00F0FF'); }}
+              onMouseLeave={() => setHoveredProject(null)}
+              style={{
+                transform: hoveredProject === 1 ? 'scale(1.02) translateY(-8px)' : 'scale(1)',
+                transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }}
+            >
+              <div className="w-full h-full bg-[#151515] relative overflow-hidden"
+                   style={{ transform: 'perspective(1000px) rotateX(2deg) rotateY(-2deg)' }}>
+                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[#00F0FF]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                
+                {/* Code Background */}
+                <div className="absolute inset-0 p-6 font-mono text-[8px] text-[#404040] leading-relaxed opacity-30">
+                  {`const checkout = () => {\n  const [cart, setCart] = useState([]);\n  return <PaymentForm />;\n}`}
+                </div>
+                
+                <div className="absolute bottom-6 left-6 z-10">
+                  <h3 className="text-4xl font-bold mb-2 tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    E-Commerce <span style={{ color: '#00F0FF' }}>Platform</span>
+                  </h3>
+                  <p className="text-xs tracking-[0.2em] uppercase opacity-60">Next.js 15 · Stripe · Vercel</p>
+                </div>
+              </div>
+            </div>
+
+            {/* About Section - Embedded in Grid */}
+            <div className="col-span-3 aspect-[3/4] bg-[#FAFAFA] text-[#0A0A0A] p-8 flex flex-col justify-between"
+                 style={{ 
+                   transform: `translateY(${scrollY * 0.1}px)`,
+                   transition: 'transform 0.1s linear'
+                 }}>
+              <div>
+                <div className="text-[10px] tracking-[0.3em] uppercase opacity-40 mb-4">Portfolio Designer</div>
+                <h2 className="text-5xl font-black mb-6 leading-[0.9]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  Building<br/>Digital<br/>
+                  <span style={{ transform: 'rotate(-3deg)', display: 'inline-block' }}>Experiences</span>
+                </h2>
+              </div>
+              <div className="space-y-4 text-sm leading-relaxed">
+                <p className="opacity-80">Specialized in crafting high-performance portfolios with Next.js, where code meets creativity.</p>
+                <div className="pt-4 border-t border-[#0A0A0A]/20">
+                  <div className="font-mono text-xs opacity-60">stack_tools:</div>
+                  <div className="text-[10px] mt-2 space-y-1">
+                    <div>Next.js 15 · React · TypeScript</div>
+                    <div>Tailwind CSS · Framer Motion</div>
+                    <div>Vercel · Git · Figma</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Project 2 */}
+            <div 
+              className="col-span-3 aspect-square group cursor-pointer relative"
+              onMouseEnter={() => { setHoveredProject(2); setActiveAccent('#CCFF00'); }}
+              onMouseLeave={() => setHoveredProject(null)}
+              style={{
+                transform: hoveredProject === 2 ? 'scale(1.02) translateY(-8px) rotate(-1deg)' : 'scale(1) rotate(0deg)',
+                transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }}
+            >
+              <div className="w-full h-full bg-[#151515] relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tl from-transparent to-[#CCFF00]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute inset-0 p-6 font-mono text-[8px] text-[#404040] leading-relaxed opacity-30">
+                  {`useEffect(() => {\n  fetchData();\n}, [deps]);`}
+                </div>
+                <div className="absolute bottom-6 left-6 z-10">
+                  <h3 className="text-3xl font-bold mb-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    SaaS <span style={{ color: '#CCFF00' }}>Dashboard</span>
+                  </h3>
+                  <p className="text-xs tracking-[0.2em] uppercase opacity-60">React · Tailwind</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact CTA - Disguised as Project */}
+            <div className="col-span-4 aspect-[2/1] bg-[#00F0FF] text-[#0A0A0A] p-8 flex items-center justify-between group cursor-pointer hover:bg-[#CCFF00] transition-colors duration-500">
+              <div>
+                <div className="text-[10px] tracking-[0.3em] uppercase opacity-60 mb-2">Available Now</div>
+                <h3 className="text-5xl font-black leading-[0.9] mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  Let's Build<br/>Together
+                </h3>
+                <div className="font-mono text-xs">contact@rystudio.dev</div>
+              </div>
+              <div className="text-7xl group-hover:rotate-45 transition-transform duration-500">→</div>
+            </div>
+
+            {/* Project 3 */}
+            <div 
+              className="col-span-3 aspect-[3/2] group cursor-pointer relative"
+              onMouseEnter={() => { setHoveredProject(3); setActiveAccent('#FF006E'); }}
+              onMouseLeave={() => setHoveredProject(null)}
+              style={{
+                transform: hoveredProject === 3 ? 'scale(1.02) translateY(-8px)' : 'scale(1)',
+                transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }}
+            >
+              <div className="w-full h-full bg-[#151515] relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[#FF006E]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute inset-0 p-6 font-mono text-[8px] text-[#404040] leading-relaxed opacity-30">
+                  {`export default async\nfunction Page() {...}`}
+                </div>
+                <div className="absolute bottom-6 left-6 z-10">
+                  <h3 className="text-3xl font-bold mb-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                    Portfolio <span style={{ color: '#FF006E' }}>CMS</span>
+                  </h3>
+                  <p className="text-xs tracking-[0.2em] uppercase opacity-60">Next.js · Vercel</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics Panel - Live Stats */}
+            <div className="col-span-4 aspect-[4/2] bg-[#0A0A0A] border border-[#404040] p-8">
+              <div className="text-[10px] tracking-[0.3em] uppercase opacity-40 mb-6">System_Metrics</div>
+              <div className="grid grid-cols-3 gap-6">
+                <div>
+                  <div className="text-4xl font-black font-mono" style={{ color: activeAccent }}>98</div>
+                  <div className="text-xs opacity-60 mt-1">Lighthouse Score</div>
+                </div>
+                <div>
+                  <div className="text-4xl font-black font-mono" style={{ color: activeAccent }}>0.8s</div>
+                  <div className="text-xs opacity-60 mt-1">Build Time</div>
+                </div>
+                <div>
+                  <div className="text-4xl font-black font-mono" style={{ color: activeAccent }}>60</div>
+                  <div className="text-xs opacity-60 mt-1">FPS</div>
+                </div>
+              </div>
+              <div className="mt-8 pt-6 border-t border-[#404040]/30">
+                <div className="font-mono text-[10px] opacity-40">
+                  git commit -m "feat: new portfolio system"
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
       </section>
 
-      {/* Services Section */}
-      <AnimatedSection className="bg-neutral-950 text-white p-10 sm:p-20">
-        <div className="max-w-6xl mx-auto text-center">
-          <span className="text-sm sm:text-base uppercase tracking-widest text-white/50 block mb-6">What I Do</span>
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 1 }}
-            className="text-4xl sm:text-6xl md:text-8xl font-bold leading-tight mb-10"
-          >
-            Three Services. One Standard.
-          </motion.h2>
-
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-10 sm:gap-14">
-            {[
-              { title: 'Landing Pages', desc: 'High-converting pages optimized for clarity and speed.' },
-              { title: 'Portfolios', desc: 'Personal brands that stand out and tell your story cleanly.' },
-              { title: 'Custom Websites', desc: 'Tailored experiences built for your vision.' },
-            ].map((s, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: i * 0.2 }}
-              >
-                <h3 className="text-2xl sm:text-3xl font-semibold mb-3 border-b border-white/20">{`0${i + 1}. ${s.title}`}</h3>
-                <p className="text-base sm:text-lg text-white/70 leading-relaxed">{s.desc}</p>
-              </motion.div>
-            ))}
+      {/* Footer - Minimal */}
+      <footer className="border-t border-[#404040]/30 py-12 px-8">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="font-mono text-[10px] opacity-40">
+            © 2025 Ry Studio — Built with Next.js 15
           </div>
-        </div>
-      </AnimatedSection>
-
-      {/* Showcase Grid */}
-      <AnimatedSection id="work" className="bg-black text-white p-10 sm:p-20">
-        <div className="max-w-7xl mx-auto">
-          <span className="text-sm sm:text-base uppercase tracking-widest text-white/50 block mb-6">Selected Work</span>
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 1 }}
-            className="text-4xl sm:text-6xl md:text-8xl font-bold leading-tight mb-10"
-          >
-            Recent Projects
-          </motion.h2>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {showcases.map((p, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: i * 0.2 }}
-                className="relative group cursor-pointer overflow-hidden rounded-xl border border-white/10 bg-neutral-950/80 transition-transform duration-500 hover:scale-105"
-              >
-                <div
-                  className="h-64 sm:h-72 md:h-80 bg-cover bg-center transition-all duration-500 group-hover:scale-105"
-                  style={{ backgroundImage: `url(${p.image})` }}
-                />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-center items-center text-center px-4">
-                  <p className="text-white/70 mb-2">{p.category} · {p.year}</p>
-                  <h3 className="text-2xl sm:text-3xl font-bold mb-1">{p.title}</h3>
-                  <p className="text-white/60 text-sm sm:text-base">{p.description}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </AnimatedSection>
-
-      {/* Contact Section */}
-      <AnimatedSection className="bg-neutral-950 text-white p-10 sm:p-20" id="contact">
-        <div className="text-center max-w-5xl mx-auto">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 1 }}
-            className="text-5xl sm:text-7xl md:text-9xl font-bold tracking-tight leading-tight mb-6 sm:mb-10"
-          >
-            LET'S BUILD
-            <br />
-            SOMETHING RARE.
-          </motion.h2>
-          <p className="text-base sm:text-2xl text-white/70 mb-8 leading-relaxed max-w-3xl mx-auto">
-            I take on a limited number of projects each month. If you're serious about standing out, let's talk.
-          </p>
-          <a
-            href="mailto:inquire@rystudio.com"
-            className="inline-block text-base sm:text-xl uppercase tracking-widest bg-white text-black px-8 py-3 sm:px-10 sm:py-4 font-semibold hover:bg-white/90 transition duration-500"
-          >
-            Start a Conversation
-          </a>
-        </div>
-      </AnimatedSection>
-
-      {/* Footer */}
-      <footer className="bg-black text-white/60 p-6 sm:p-10 text-xs sm:text-sm border-t border-white/10">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
-          <p>&copy; {new Date().getFullYear()} Ry Studio. Crafted with obsession.</p>
-          <div className="flex flex-col sm:flex-row sm:space-x-8 items-center gap-2 sm:gap-0">
-            <a href="https://twitter.com/yourhandle" target="_blank" rel="noopener noreferrer" className="hover:text-white transition duration-300">
-              X/Twitter
-            </a>
-            <p className="text-xs sm:text-sm">Built with Next.js · Deployed on Vercel</p>
+          <div className="flex gap-8 text-xs">
+            <a href="#" className="opacity-60 hover:opacity-100 transition-opacity">GitHub</a>
+            <a href="#" className="opacity-60 hover:opacity-100 transition-opacity">LinkedIn</a>
+            <a href="#" className="opacity-60 hover:opacity-100 transition-opacity">Twitter</a>
           </div>
         </div>
       </footer>
-    </main>
+
+      {/* Custom Cursor Effect */}
+      <div 
+        className="fixed w-4 h-4 border-2 rounded-full pointer-events-none z-50 mix-blend-difference"
+        style={{
+          borderColor: activeAccent,
+          left: cursorPos.x - 8,
+          top: cursorPos.y - 8,
+          transition: 'border-color 0.3s ease'
+        }}
+      />
+      
+    </div>
   );
 }
