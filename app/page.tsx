@@ -77,7 +77,7 @@ export default function RyStudio() {
             
             {/* Project 1 - Large Span */}
             <div 
-              className="md:col-span-4 aspect-[4/3] group cursor-pointer relative"
+              className="md:col-span-4 aspect-[4/3] group cursor-pointer relative order-2 md:order-none"
               onMouseEnter={() => { setHoveredProject(1); setActiveAccent('#00F0FF'); }}
               onMouseLeave={() => setHoveredProject(null)}
               onTouchStart={() => { setHoveredProject(1); setActiveAccent('#00F0FF'); }}
@@ -105,7 +105,7 @@ export default function RyStudio() {
             </div>
 
             {/* About Section - Embedded in Grid */}
-            <div className="md:col-span-3 aspect-[3/4] bg-[#FAFAFA] text-[#0A0A0A] p-6 md:p-8 flex flex-col justify-between"
+            <div className="md:col-span-3 aspect-[3/4] bg-[#FAFAFA] text-[#0A0A0A] p-6 md:p-8 flex flex-col justify-between order-1 md:order-none"
                  style={{ 
                    transform: isMobile ? 'none' : `translateY(${scrollY * 0.1}px)`,
                    transition: 'transform 0.1s linear'
@@ -132,7 +132,7 @@ export default function RyStudio() {
 
             {/* Project 2 */}
             <div 
-              className="md:col-span-3 aspect-square group cursor-pointer relative"
+              className="md:col-span-3 aspect-square group cursor-pointer relative order-3 md:order-none"
               onMouseEnter={() => { setHoveredProject(2); setActiveAccent('#CCFF00'); }}
               onMouseLeave={() => setHoveredProject(null)}
               onTouchStart={() => { setHoveredProject(2); setActiveAccent('#CCFF00'); }}
@@ -156,7 +156,7 @@ export default function RyStudio() {
             </div>
 
             {/* Contact CTA - Disguised as Project */}
-            <div className="md:col-span-4 aspect-[2/1] bg-[#00F0FF] text-[#0A0A0A] p-6 md:p-8 flex items-center justify-between group cursor-pointer hover:bg-[#CCFF00] active:bg-[#CCFF00] transition-colors duration-500">
+            <div className="md:col-span-4 aspect-[2/1] bg-[#00F0FF] text-[#0A0A0A] p-6 md:p-8 flex items-center justify-between group cursor-pointer hover:bg-[#CCFF00] active:bg-[#CCFF00] transition-colors duration-500 order-6 md:order-none">
               <div>
                 <div className="text-[8px] md:text-[10px] tracking-[0.3em] uppercase opacity-60 mb-2">Available Now</div>
                 <h3 className="text-3xl md:text-5xl font-black leading-[0.9] mb-3 md:mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
@@ -169,7 +169,7 @@ export default function RyStudio() {
 
             {/* Project 3 */}
             <div 
-              className="md:col-span-3 aspect-[3/2] group cursor-pointer relative"
+              className="md:col-span-3 aspect-[3/2] group cursor-pointer relative order-4 md:order-none"
               onMouseEnter={() => { setHoveredProject(3); setActiveAccent('#FF006E'); }}
               onMouseLeave={() => setHoveredProject(null)}
               onTouchStart={() => { setHoveredProject(3); setActiveAccent('#FF006E'); }}
@@ -193,7 +193,7 @@ export default function RyStudio() {
             </div>
 
             {/* Metrics Panel - Live Stats */}
-            <div className="md:col-span-4 aspect-[4/2] bg-[#0A0A0A] border border-[#404040] p-6 md:p-8">
+            <div className="md:col-span-4 aspect-[4/2] bg-[#0A0A0A] border border-[#404040] p-6 md:p-8 order-5 md:order-none">
               <div className="text-[8px] md:text-[10px] tracking-[0.3em] uppercase opacity-40 mb-4 md:mb-6">System_Metrics</div>
               <div className="grid grid-cols-3 gap-4 md:gap-6">
                 <div>
