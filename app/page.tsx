@@ -26,7 +26,7 @@ export default function Portfolio() {
     id,
   }) => {
     const ref = useRef<HTMLElement>(null);
-    const [isVisible, setIsVisible] = useState(true); // start visible to reduce blinking
+    const [isVisible, setIsVisible] = useState(true);
 
     useEffect(() => {
       const observer = new IntersectionObserver(
@@ -107,9 +107,15 @@ export default function Portfolio() {
       <header className="fixed top-0 left-0 right-0 z-40 p-6 sm:p-8 flex justify-between items-center backdrop-blur-sm bg-black/30">
         <div className="flex items-center space-x-3 text-xl sm:text-2xl font-bold tracking-wider">
           <div className="transition-transform" style={{ transform: `rotate(${scrollPosition * 0.05}deg)` }}>
-            <Image src="/noun.svg" alt="Ry Studio Logo" width={44} height={44} className="opacity-90" />
+            <Image
+              src="/noun.svg"
+              alt="Ry Studio Logo"
+              width={44}
+              height={44}
+              className="opacity-100 invert" // make SVG white
+            />
           </div>
-          <span className="hidden sm:inline opacity-90">RY STUDIO</span>
+          <span className="hidden sm:inline opacity-100">RY STUDIO</span>
         </div>
         <nav>
           <a
@@ -179,22 +185,19 @@ export default function Portfolio() {
           <h2 className="text-4xl sm:text-6xl md:text-8xl font-bold leading-tight mb-10">Recent Projects</h2>
 
           <div className="relative overflow-hidden">
-            <div
-              className="flex transition-transform duration-[800ms] ease-out"
-              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-            >
+            <div className="flex transition-transform duration-[800ms] ease-out" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
               {showcases.map((p, i) => (
                 <div key={i} className="min-w-full px-2 sm:px-4">
-                  <div className="border border-white/10 p-8 sm:p-12 min-h-[500px] sm:min-h-[600px] flex flex-col justify-between bg-neutral-950/80">
+                  <div className="border border-white/10 p-6 sm:p-10 md:p-12 min-h-[500px] sm:min-h-[550px] flex flex-col justify-between bg-neutral-950/80 transition-all duration-500 hover:scale-105">
                     <div>
                       <div className="flex items-center gap-4 mb-4 text-xs sm:text-sm text-white/40 uppercase">
                         <span>{p.year}</span> — <span>{p.category}</span>
                       </div>
-                      <h3 className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight mb-6">{p.title}</h3>
-                      <p className="text-lg sm:text-2xl text-white/70">{p.description}</p>
+                      <h3 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 sm:mb-6">{p.title}</h3>
+                      <p className="text-base sm:text-lg text-white/70 leading-relaxed">{p.description}</p>
                     </div>
                     <div
-                      className="mt-8 sm:mt-12 h-56 sm:h-80 bg-neutral-900 bg-cover bg-center border border-white/10"
+                      className="mt-6 sm:mt-8 h-48 sm:h-64 md:h-80 bg-neutral-900 bg-cover bg-center border border-white/10 transition-transform duration-500 hover:scale-105"
                       style={{ backgroundImage: `url(${p.image})` }}
                     />
                   </div>
@@ -203,10 +206,16 @@ export default function Portfolio() {
             </div>
 
             {/* Navigation */}
-            <button onClick={prevSlide} className="absolute left-0 top-1/2 -translate-y-1/2 px-3 py-2 sm:px-5 sm:py-3 border border-white/20 hover:border-white hover:bg-white/10 transition duration-300">
+            <button
+              onClick={prevSlide}
+              className="absolute left-0 top-1/2 -translate-y-1/2 px-3 py-2 sm:px-5 sm:py-3 border border-white/20 hover:border-white hover:bg-white/10 transition duration-300"
+            >
               ←
             </button>
-            <button onClick={nextSlide} className="absolute right-0 top-1/2 -translate-y-1/2 px-3 py-2 sm:px-5 sm:py-3 border border-white/20 hover:border-white hover:bg-white/10 transition duration-300">
+            <button
+              onClick={nextSlide}
+              className="absolute right-0 top-1/2 -translate-y-1/2 px-3 py-2 sm:px-5 sm:py-3 border border-white/20 hover:border-white hover:bg-white/10 transition duration-300"
+            >
               →
             </button>
           </div>
@@ -216,7 +225,7 @@ export default function Portfolio() {
       {/* Contact Section */}
       <AnimatedSection className="bg-neutral-950 text-white p-10 sm:p-20" id="contact">
         <div className="text-center max-w-5xl mx-auto">
-          <h2 className="text-5xl sm:text-7xl md:text-9xl font-bold tracking-tight leading-tight mb-6">
+          <h2 className="text-5xl sm:text-7xl md:text-9xl font-bold tracking-tight leading-tight mb-6 sm:mb-10">
             LET'S BUILD
             <br />
             SOMETHING RARE.
@@ -224,7 +233,10 @@ export default function Portfolio() {
           <p className="text-base sm:text-2xl text-white/70 mb-8 leading-relaxed max-w-3xl mx-auto">
             I take on a limited number of projects each month. If you're serious about standing out, let's talk.
           </p>
-          <a href="mailto:inquire@rystudio.com" className="inline-block text-base sm:text-xl uppercase tracking-widest bg-white text-black px-8 py-3 sm:px-10 sm:py-4 font-semibold hover:bg-white/90 transition duration-500">
+          <a
+            href="mailto:inquire@rystudio.com"
+            className="inline-block text-base sm:text-xl uppercase tracking-widest bg-white text-black px-8 py-3 sm:px-10 sm:py-4 font-semibold hover:bg-white/90 transition duration-500"
+          >
             Start a Conversation
           </a>
         </div>
