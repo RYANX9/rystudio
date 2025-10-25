@@ -1,41 +1,39 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-// REMOVED: import Image from 'next/image'; to fix the compilation error.
+import { useState, useEffect } from 'react';
 
 export default function RyStudio() {
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
-  const [hoveredProject, setHoveredProject] = useState(null);
+  const [hoveredProject, setHoveredProject] = useState<number | null>(null);
   const [scrollY, setScrollY] = useState(0);
   const [activeAccent, setActiveAccent] = useState('#00F0FF');
   const [cursorScale, setCursorScale] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
-    
+  
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-      
+    
     checkMobile();
     window.addEventListener('resize', checkMobile);
-      
-    // FIX APPLIED: Explicitly type 'e' as MouseEvent to resolve the 'implicit any' error.
+    
     const handleMouseMove = (e: MouseEvent) => {
       setCursorPos({ x: e.clientX, y: e.clientY });
     };
-      
+    
     const handleScroll = () => {
       setScrollY(window.scrollY);
     };
-      
+    
     const handleMouseDown = () => setCursorScale(0.8);
     const handleMouseUp = () => setCursorScale(1);
-      
+    
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('scroll', handleScroll);
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mouseup', handleMouseUp);
-      
+    
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('scroll', handleScroll);
@@ -45,25 +43,17 @@ export default function RyStudio() {
     };
   }, []);
 
-  const projects = [
-    { id: 1, title: 'E-Commerce Platform', code: 'const checkout = () => {...}', tech: 'Next.js 15 · Stripe', color: '#00F0FF' },
-    { id: 2, title: 'SaaS Dashboard', code: 'useEffect(() => {...}', tech: 'React · Tailwind', color: '#CCFF00' },
-    { id: 3, title: 'Portfolio CMS', code: 'export default async', tech: 'Next.js · Vercel', color: '#FF006E' },
-    { id: 4, title: 'API Gateway', code: 'fetch("/api/...")', tech: 'Node.js · Edge', color: '#8B00FF' },
-  ];
-
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#FAFAFA] overflow-x-hidden font-sans md:cursor-none">
-        
+      
       {/* BREAKING THE RULES: Projects First - No Traditional Hero */}
       <section className="relative min-h-screen pt-16 md:pt-20 pb-20 md:pb-32">
-          
+        
         {/* Floating Header - Not Fixed, Flows With Content */}
         <div className="absolute top-4 md:top-8 left-0 right-0 px-4 md:px-8 z-50">
           <div className="max-w-7xl mx-auto flex justify-between items-start">
             <div className="flex items-center gap-2 md:gap-3">
               <div className="w-6 h-6 md:w-8 md:h-8 relative">
-                {/* REPLACED Image with standard img */}
                 <img
                   src="/noun.svg"
                   alt="Ry Studio"
@@ -84,7 +74,7 @@ export default function RyStudio() {
         {/* Projects Grid - Mobile: Stack, Desktop: 7-col Grid */}
         <div className="max-w-7xl mx-auto px-4 md:px-8 mt-16 md:mt-24">
           <div className="grid grid-cols-1 md:grid-cols-7 gap-4 md:gap-6">
-              
+            
             {/* Project 1 - Large Span */}
             <div 
               className="md:col-span-4 aspect-[4/3] group cursor-pointer relative"
@@ -97,12 +87,12 @@ export default function RyStudio() {
               }}
             >
               <div className="w-full h-full bg-[#151515] relative overflow-hidden"
-                  style={{ transform: isMobile ? 'none' : 'perspective(1000px) rotateX(2deg) rotateY(-2deg)' }}>
+                   style={{ transform: isMobile ? 'none' : 'perspective(1000px) rotateX(2deg) rotateY(-2deg)' }}>
                 <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[#00F0FF]/20 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500" />
                 
                 {/* Code Background */}
                 <div className="absolute inset-0 p-4 md:p-6 font-mono text-[6px] md:text-[8px] text-[#404040] leading-relaxed opacity-30">
-                  {`const checkout = () => {\n \tconst [cart, setCart] = useState([]);\n \treturn <PaymentForm />;\n}`}
+                  {`const checkout = () => {\n  const [cart, setCart] = useState([]);\n  return <PaymentForm />;\n}`}
                 </div>
                 
                 <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 z-10">
@@ -116,10 +106,10 @@ export default function RyStudio() {
 
             {/* About Section - Embedded in Grid */}
             <div className="md:col-span-3 aspect-[3/4] bg-[#FAFAFA] text-[#0A0A0A] p-6 md:p-8 flex flex-col justify-between"
-                style={{ 
-                    transform: isMobile ? 'none' : `translateY(${scrollY * 0.1}px)`,
-                    transition: 'transform 0.1s linear'
-                  }}>
+                 style={{ 
+                   transform: isMobile ? 'none' : `translateY(${scrollY * 0.1}px)`,
+                   transition: 'transform 0.1s linear'
+                 }}>
               <div>
                 <div className="text-[8px] md:text-[10px] tracking-[0.3em] uppercase opacity-40 mb-3 md:mb-4">Portfolio Designer</div>
                 <h2 className="text-3xl md:text-5xl font-black mb-4 md:mb-6 leading-[0.9]" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
@@ -154,7 +144,7 @@ export default function RyStudio() {
               <div className="w-full h-full bg-[#151515] relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-tl from-transparent to-[#CCFF00]/20 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500" />
                 <div className="absolute inset-0 p-4 md:p-6 font-mono text-[6px] md:text-[8px] text-[#404040] leading-relaxed opacity-30">
-                  {`useEffect(() => {\n \tfetchData();\n}, [deps]);`}
+                  {`useEffect(() => {\n  fetchData();\n}, [deps]);`}
                 </div>
                 <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 z-10">
                   <h3 className="text-2xl md:text-3xl font-bold mb-1 md:mb-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
@@ -221,7 +211,7 @@ export default function RyStudio() {
               </div>
               <div className="mt-6 md:mt-8 pt-4 md:pt-6 border-t border-[#404040]/30">
                 <div className="font-mono text-[8px] md:text-[10px] opacity-40">
-                  git commit -m "feat: new portfolio system"
+                  git commit -m &quot;feat: new portfolio system&quot;
                 </div>
               </div>
             </div>
@@ -262,7 +252,6 @@ export default function RyStudio() {
               transition: 'filter 0.3s ease'
             }}
           >
-            {/* REPLACED Image with standard img */}
             <img 
               src="/noun.svg" 
               alt="cursor" 
@@ -273,7 +262,7 @@ export default function RyStudio() {
           </div>
         </div>
       )}
-        
+      
     </div>
   );
 }
