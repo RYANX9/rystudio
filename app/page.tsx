@@ -20,70 +20,37 @@ export default function Portfolio() {
     };
   }, [handleScroll, handleMouseMove]);
 
-  const AnimatedSection: React.FC<{ children: React.ReactNode; index: number; className?: string; id?: string }> = ({
+  const AnimatedSection: React.FC<{ children: React.ReactNode; className?: string; id?: string }> = ({
     children,
-    index,
     className = '',
     id,
   }) => {
-    const [isVisible, setIsVisible] = useState(false);
-    const ref = useRef<HTMLElement>(null);
-
-    useEffect(() => {
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setTimeout(() => setIsVisible(true), index * 100);
-        },
-        { rootMargin: '-100px', threshold: 0.15 }
-      );
-      if (ref.current) observer.observe(ref.current);
-      return () => ref.current && observer.unobserve(ref.current);
-    }, [index]);
-
     return (
-      <section
-        ref={ref as React.MutableRefObject<HTMLElement>}
-        id={id}
-        className={`min-h-screen relative overflow-hidden flex flex-col justify-center ${className}`}
-      >
-        <div
-          className={`transition-all duration-[1400ms] ease-out ${
-            isVisible ? 'opacity-100 translate-y-0 blur-0' : 'opacity-0 translate-y-16 blur-sm'
-          } w-full`}
-        >
-          {children}
-        </div>
+      <section id={id} className={`min-h-screen relative overflow-hidden flex flex-col justify-center ${className}`}>
+        {children}
       </section>
     );
   };
 
-  const FadeInText: React.FC<{ children: React.ReactNode; delay?: number; className?: string }> = ({
-    children,
-    delay = 0,
-    className = '',
-  }) => {
-    const [isVisible, setIsVisible] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
+  const TypewriterText: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => {
+    const [displayText, setDisplayText] = useState('');
     useEffect(() => {
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setTimeout(() => setIsVisible(true), delay);
-        },
-        { threshold: 0.2 }
-      );
-      if (ref.current) observer.observe(ref.current);
-      return () => ref.current && observer.unobserve(ref.current);
-    }, [delay]);
+      let currentIndex = 0;
+      const interval = setInterval(() => {
+        if (currentIndex <= text.length) {
+          setDisplayText(text.slice(0, currentIndex));
+          currentIndex++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 30);
+      return () => clearInterval(interval);
+    }, [text]);
 
     return (
-      <div
-        ref={ref}
-        className={`transition-all duration-[1600ms] ease-out ${
-          isVisible ? 'opacity-100 translate-y-0 blur-0' : 'opacity-0 translate-y-12 blur-sm'
-        } ${className}`}
-      >
-        {children}
+      <div className={`${className} whitespace-pre-wrap`}>
+        {displayText}
+        <span className="inline-block w-1 h-[0.8em] bg-white ml-1 animate-pulse" />
       </div>
     );
   };
@@ -170,28 +137,16 @@ export default function Portfolio() {
         </div>
 
         <div className="z-20 text-center px-4 sm:px-8">
-          <FadeInText delay={200}>
-            <h1 className="text-5xl sm:text-8xl md:text-9xl font-extrabold tracking-tight sm:tracking-tighter leading-tight sm:leading-none">
-              PREMIUM
-              <br />
-              WEB DESIGN
-            </h1>
-          </FadeInText>
-
-          <FadeInText delay={600} className="mt-4 sm:mt-6">
-            <p className="text-sm sm:text-xl font-light text-white/80 max-w-md sm:max-w-3xl mx-auto tracking-widest uppercase">
-              Exclusive landing pages, portfolios, and custom websites. Limited slots available.
-            </p>
-          </FadeInText>
-
-          <FadeInText delay={1000}>
-            <a
-              href="#work"
-              className="mt-6 sm:mt-12 inline-block text-sm sm:text-lg tracking-widest border-b border-white/40 pb-1 hover:border-white transition-all duration-700 opacity-80 hover:opacity-100"
-            >
-              View Selected Work
-            </a>
-          </FadeInText>
+          <TypewriterText text={`PREMIUM\nWEB DESIGN`} className="text-5xl sm:text-8xl md:text-9xl font-extrabold tracking-tight sm:tracking-tighter leading-tight sm:leading-none" />
+          <p className="mt-6 text-sm sm:text-xl font-light text-white/80 max-w-md sm:max-w-3xl mx-auto tracking-widest uppercase">
+            Exclusive landing pages, portfolios, and custom websites. Limited slots available.
+          </p>
+          <a
+            href="#work"
+            className="mt-6 sm:mt-12 inline-block text-sm sm:text-lg tracking-widest border-b border-white/40 pb-1 hover:border-white transition-all duration-700 opacity-80 hover:opacity-100"
+          >
+            View Selected Work
+          </a>
         </div>
       </section>
 
@@ -199,38 +154,29 @@ export default function Portfolio() {
       <div className="h-32 bg-gradient-to-b from-black via-neutral-900 to-neutral-800" />
 
       {/* Services Section */}
-      <AnimatedSection index={1} className="bg-neutral-900 text-white p-8 sm:p-16">
+      <AnimatedSection className="bg-neutral-900 text-white p-8 sm:p-16">
         <div className="max-w-6xl mx-auto">
-          <FadeInText delay={0}>
-            <span className="text-xs sm:text-sm uppercase tracking-widest text-white/60 block mb-4 sm:mb-6">
-              What You Get
-            </span>
-          </FadeInText>
-
-          <FadeInText delay={200}>
-            <h2 className="text-3xl sm:text-5xl md:text-7xl font-bold leading-tight mb-8 sm:mb-12">
-              Three Services.
-              <br />
-              One Standard.
-            </h2>
-          </FadeInText>
+          <span className="text-xs sm:text-sm uppercase tracking-widest text-white/60 block mb-4 sm:mb-6">What You Get</span>
+          <h2 className="text-3xl sm:text-5xl md:text-7xl font-bold leading-tight mb-8 sm:mb-12">
+            Three Services.
+            <br />
+            One Standard.
+          </h2>
 
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-12">
             {['Landing Pages', 'Portfolios', 'Custom Websites'].map((service, i) => (
-              <FadeInText key={i} delay={400 + i * 200}>
-                <div className="group">
-                  <h3 className="text-xl sm:text-2xl font-semibold mb-2 sm:mb-3 pb-1 sm:pb-2 border-b border-white/20 group-hover:border-white transition-all duration-700">
-                    {`0${i + 1}. ${service}`}
-                  </h3>
-                  <p className="text-sm sm:text-lg text-white/70 leading-relaxed">
-                    {service === 'Landing Pages'
-                      ? 'High-converting pages designed to capture attention instantly. Built for speed, optimized for results.'
-                      : service === 'Portfolios'
-                      ? 'Personal brands that position you as the obvious choice. Your story, told with precision and style.'
-                      : 'Fully bespoke digital experiences. From concept to launch, tailored to your exact vision.'}
-                  </p>
-                </div>
-              </FadeInText>
+              <div key={i} className="group">
+                <h3 className="text-xl sm:text-2xl font-semibold mb-2 sm:mb-3 pb-1 sm:pb-2 border-b border-white/20 group-hover:border-white transition-all duration-700">
+                  {`0${i + 1}. ${service}`}
+                </h3>
+                <p className="text-sm sm:text-lg text-white/70 leading-relaxed">
+                  {service === 'Landing Pages'
+                    ? 'High-converting pages designed to capture attention instantly. Built for speed, optimized for results.'
+                    : service === 'Portfolios'
+                    ? 'Personal brands that position you as the obvious choice. Your story, told with precision and style.'
+                    : 'Fully bespoke digital experiences. From concept to launch, tailored to your exact vision.'}
+                </p>
+              </div>
             ))}
           </div>
         </div>
@@ -240,19 +186,12 @@ export default function Portfolio() {
       <div className="h-32 bg-gradient-to-b from-neutral-900 via-black to-neutral-800" />
 
       {/* Showcase Section */}
-      <AnimatedSection index={2} id="work" className="bg-black text-white p-8 sm:p-16">
+      <AnimatedSection id="work" className="bg-black text-white p-8 sm:p-16">
         <div className="max-w-7xl mx-auto">
-          <FadeInText delay={0}>
-            <span className="text-xs sm:text-sm uppercase tracking-widest text-white/60 block mb-4 sm:mb-6">
-              Selected Work
-            </span>
-          </FadeInText>
-
-          <FadeInText delay={200}>
-            <h2 className="text-3xl sm:text-5xl md:text-7xl font-bold leading-tight mb-8 sm:mb-12">
-              Recent Projects.
-            </h2>
-          </FadeInText>
+          <span className="text-xs sm:text-sm uppercase tracking-widest text-white/60 block mb-4 sm:mb-6">
+            Selected Work
+          </span>
+          <h2 className="text-3xl sm:text-5xl md:text-7xl font-bold leading-tight mb-8 sm:mb-12">Recent Projects.</h2>
 
           <div className="relative overflow-hidden">
             <div className="flex transition-transform duration-[1200ms] ease-in-out" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
@@ -265,9 +204,7 @@ export default function Portfolio() {
                         <span>—</span>
                         <span>{project.category}</span>
                       </div>
-                      <h3 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
-                        {project.title}
-                      </h3>
+                      <h3 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">{project.title}</h3>
                       <p className="text-base sm:text-xl text-white/70 max-w-2xl leading-relaxed opacity-80">{project.description}</p>
                     </div>
                     <div
@@ -279,7 +216,6 @@ export default function Portfolio() {
               ))}
             </div>
 
-            {/* Navigation dots */}
             <div className="flex justify-center gap-3 mt-8 sm:mt-12">
               {showcases.map((_, index) => (
                 <button
@@ -297,50 +233,32 @@ export default function Portfolio() {
       </AnimatedSection>
 
       {/* Contact Section */}
-      <section id="contact" className="min-h-[70vh] flex items-center justify-center bg-neutral-900 text-white p-8 sm:p-16">
+      <AnimatedSection className="bg-neutral-900 text-white p-8 sm:p-16" id="contact">
         <div className="text-center max-w-4xl mx-auto">
-          <FadeInText delay={0}>
-            <h2 className="text-3xl sm:text-6xl md:text-8xl font-bold tracking-tight leading-tight mb-4 sm:mb-8">
-              LET'S BUILD
-              <br />
-              SOMETHING RARE.
-            </h2>
-          </FadeInText>
-
-          <FadeInText delay={300}>
-            <p className="text-sm sm:text-xl font-light text-white/70 mb-6 sm:mb-10 leading-relaxed">
-              I respond to every inquiry within 24 hours. Limited slots available each month.
-            </p>
-          </FadeInText>
-
-          <FadeInText delay={600}>
-            <a
-              href="mailto:inquire@rystudio.com"
-              className="inline-block text-sm sm:text-lg uppercase tracking-widest bg-white/10 text-white px-6 sm:px-8 py-2 sm:py-4 hover:bg-white/20 transition-all duration-700"
-            >
-              Start a Conversation
-            </a>
-          </FadeInText>
-
-          <FadeInText delay={900}>
-            <p className="mt-6 sm:mt-8 text-xs sm:text-sm text-white/50 opacity-70">
-              Investment: $3,000 - $12,000 | Timeline: 2-4 weeks
-            </p>
-          </FadeInText>
+          <h2 className="text-3xl sm:text-6xl md:text-8xl font-bold tracking-tight leading-tight mb-4 sm:mb-8">
+            LET'S BUILD
+            <br />
+            SOMETHING RARE.
+          </h2>
+          <p className="text-sm sm:text-xl font-light text-white/70 mb-6 sm:mb-10 leading-relaxed">
+            I respond to every inquiry within 24 hours. Limited slots available each month.
+          </p>
+          <a
+            href="mailto:inquire@rystudio.com"
+            className="inline-block text-sm sm:text-lg uppercase tracking-widest bg-white/10 text-white px-6 sm:px-8 py-2 sm:py-4 hover:bg-white/20 transition-all duration-700"
+          >
+            Start a Conversation
+          </a>
+          <p className="mt-6 sm:mt-8 text-xs sm:text-sm text-white/50 opacity-70">Investment: $3,000 - $12,000 | Timeline: 2-4 weeks</p>
         </div>
-      </section>
+      </AnimatedSection>
 
       {/* Footer */}
       <footer className="bg-black text-white/70 p-4 sm:p-8 text-xs sm:text-sm border-t border-white/10">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0 opacity-70">
           <p>&copy; {new Date().getFullYear()} Ry Studio. Crafted with obsession.</p>
           <div className="flex flex-col sm:flex-row sm:space-x-6 items-center">
-            <a
-              href="https://twitter.com/yourhandle"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-white transition-colors duration-500 mb-1 sm:mb-0"
-            >
+            <a href="https://twitter.com/yourhandle" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors duration-500 mb-1 sm:mb-0">
               X/Twitter
             </a>
             <p className="text-xs sm:text-sm">Built with Next.js and Vercel</p>
