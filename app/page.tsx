@@ -1,17 +1,21 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
+// FIX: Replacing 'next/image' with standard <img> due to build environment constraints.
+// The component is removed from imports.
 
 export default function RyStudio() {
+  // Fix 1: Explicitly define the state type to allow number or null
+  const [hoveredProject, setHoveredProject] = useState<number | null>(null);
+  
+  // Retaining original state definitions
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
-  const [hoveredProject, setHoveredProject] = useState(null);
   const [scrollY, setScrollY] = useState(0);
   const [activeAccent, setActiveAccent] = useState('#00F0FF');
   const [cursorScale, setCursorScale] = useState(1);
   
   useEffect(() => {
-    // FIX: Explicitly type 'e' as React.MouseEvent or MouseEvent
+    // Fix 2: Explicitly type 'e' as MouseEvent to resolve the 'any' type error
     const handleMouseMove = (e: MouseEvent) => {
       setCursorPos({ x: e.clientX, y: e.clientY });
     };
@@ -54,12 +58,13 @@ export default function RyStudio() {
           <div className="max-w-7xl mx-auto flex justify-between items-start">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 relative">
-                <Image 
+                {/* Replaced Next.js Image with standard <img> */}
+                <img 
                   src="/noun.svg" 
                   alt="Ry Studio" 
                   width={32} 
                   height={32}
-                  className="invert"
+                  className="invert absolute inset-0 w-full h-full"
                 />
               </div>
               <div className="font-mono text-xs tracking-widest opacity-60">RY_STUDIO</div>
@@ -248,12 +253,13 @@ export default function RyStudio() {
             transition: 'filter 0.3s ease'
           }}
         >
-          <Image 
+          {/* Replaced Next.js Image with standard <img> */}
+          <img 
             src="/noun.svg" 
             alt="cursor" 
             width={24} 
             height={24}
-            className="invert"
+            className="invert absolute inset-0 w-full h-full"
           />
         </div>
       </div>
