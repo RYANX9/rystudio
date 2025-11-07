@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RY Dev | Design in Motion, Code with Soul ",
+  title: "RY Studio | Design in Motion, Code with Soul ",
   description:
     "portfilio desingand develop",
   icons: {
