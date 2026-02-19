@@ -4,7 +4,6 @@ export const metadata = {
   title: 'Day Tracker',
   description: 'Track what you do, when you do it',
   manifest: '/manifest.json',
-  themeColor: '#0a0a0a',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -12,11 +11,17 @@ export const metadata = {
   },
 };
 
+export const viewport = {
+  themeColor: '#0a0a0a',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
