@@ -6,7 +6,15 @@ export default [
     ignores: ["**/node_modules/**", "**/.next/**"],
   },
   {
+    files: ["**/*.js", "**/*.jsx"],
     plugins: { "@next/next": nextPlugin },
+    languageOptions: {
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+        ecmaFeatures: { jsx: true },
+      },
+    },
     rules: {
       "@next/next/no-img-element": "off",
       "react/no-unescaped-entities": "off",
