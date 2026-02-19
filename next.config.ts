@@ -1,24 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // --- START IMAGE CONFIGURATION ---
   images: {
-    // Defines allowed external image domains for next/image
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'fdn2.gsmarena.com', // Allows the phone image URL
+        hostname: 'fdn2.gsmarena.com',
         port: '',
         pathname: '/vv/bigpic/**',
       },
       {
         protocol: 'https',
-        hostname: 'placehold.co', // Allows the image placeholder
+        hostname: 'placehold.co',
         port: '',
         pathname: '/**',
       },
     ],
   },
-  // --- END IMAGE CONFIGURATION ---
 };
-
 export default nextConfig;
