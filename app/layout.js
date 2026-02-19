@@ -1,0 +1,42 @@
+import './globals.css';
+
+export const metadata = {
+  title: 'Day Tracker',
+  description: 'Track what you do, when you do it',
+  manifest: '/manifest.json',
+  themeColor: '#0a0a0a',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Tracker',
+  },
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+      </head>
+      <body>
+        {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js')
+                    .catch(err => console.error('SW registration failed:', err));
+                });
+              }
+            `,
+          }}
+        />
+      </body>
+    </html>
+  );
+}
