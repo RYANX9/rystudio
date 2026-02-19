@@ -1,0 +1,59 @@
+import { NextResponse } from 'next/server';
+import sql from '@/lib/db';
+
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const date = searchParams.get('date'); // expects YYYY-MM-DD
+
+  try {
+    const entries = date
+      ? await sql`
+          SELECT * FROM entries
+          WHERE DATE(started_at AT TIME ZONE 'UTC') = ${date}
+          ORDER BY started_at ASC
+        `
+      : await sql`
+          SELECT * FROM entries
+          ORDER BY started_at DESC
+          LIMIT 50
+        `;
+
+    return NextResponse.json(entries);
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function POST(request) {
+  try {
+    const { activity, tag, started_at, duration_minutes } = await request.json();
+
+    if (!activity || !started_at || !duration_minutes) {
+      return NextResponse.json({ error: 'activity, started_at, duration_minutes are required' }, { status: 400 });
+    }
+
+    const [entry] = await sql`
+      INSERT INTO entries (activity, tag, started_at, duration_minutes)
+      VALUES (${activity}, ${tag || 'other'}, ${started_at}, ${duration_minutes})
+      RETURNING *
+    `;
+
+    return NextResponse.json(entry, { status: 201 });
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  try {
+    await sql`DELETE FROM entries WHERE id = ${id}`;
+    return NextResponse.json({ deleted: true });
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
