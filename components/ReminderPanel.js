@@ -9,6 +9,27 @@ const PRESETS = [
   { label: 'Sohour — wake up', time: '05:00' },
 ];
 
+function playAlertSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // three rising beeps
+    [0, 0.3, 0.6].forEach((delay, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = 520 + i * 120;
+      gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + delay + 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + delay + 0.3);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.35);
+    });
+  } catch (_) {}
+}
+
 export default function ReminderPanel() {
   const [reminders, setReminders] = useState([]);
   const [label, setLabel] = useState('');
@@ -21,43 +42,36 @@ export default function ReminderPanel() {
   useEffect(() => {
     fetchReminders();
     checkPushStatus();
-    return () => clearInterval(pollRef.current);
-  }, []);
 
-  // poll every 30 seconds, fire any reminder whose time has passed and not yet sent
-  useEffect(() => {
-    pollRef.current = setInterval(() => {
-      setReminders((prev) => {
-        const now = new Date();
-        prev.forEach((r) => {
-          if (!r.sent && new Date(r.remind_at) <= now) {
-            triggerReminder(r);
-          }
-        });
-        return prev;
-      });
-    }, 30000);
-    return () => clearInterval(pollRef.current);
-  }, []);
-
-  async function triggerReminder(r) {
-    // show browser notification directly if permission granted
-    if (Notification.permission === 'granted') {
-      new Notification(r.label, {
-        body: new Date(r.remind_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        icon: '/icon-192.png',
-        tag: `reminder-${r.id}`,
+    // listen for REMINDER_FIRED from service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'REMINDER_FIRED') {
+          playAlertSound();
+          // refresh list so sent status updates
+          fetchReminders();
+        }
       });
     }
-    // also mark as sent on server
-    try {
-      await fetch('/api/reminders', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: r.id, action: 'send' }),
-      });
-      setReminders((prev) => prev.map((x) => x.id === r.id ? { ...x, sent: true } : x));
-    } catch (_) {}
+
+    // poll every 30 seconds: tell SW to check reminders
+    // this keeps SW alive while the tab is open
+    pollRef.current = setInterval(() => {
+      pingServiceWorker();
+    }, 30000);
+
+    // also check immediately on mount in case any are overdue
+    pingServiceWorker();
+
+    return () => clearInterval(pollRef.current);
+  }, []);
+
+  async function pingServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+    if (reg.active) {
+      reg.active.postMessage({ type: 'CHECK_REMINDERS' });
+    }
   }
 
   async function fetchReminders() {
@@ -77,12 +91,12 @@ export default function ReminderPanel() {
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        setError('Permission denied. Enable notifications in browser settings.');
+        setError('Permission denied. Go to browser site settings and allow notifications.');
         return;
       }
       setPushEnabled(true);
+      setError('');
 
-      // also register with server for web push
       if ('serviceWorker' in navigator && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.subscribe({
@@ -103,7 +117,6 @@ export default function ReminderPanel() {
   async function addReminder(e) {
     e.preventDefault();
     if (!label.trim() || !remindAt) return;
-
     setLoading(true);
     try {
       const res = await fetch('/api/reminders', {
@@ -129,7 +142,6 @@ export default function ReminderPanel() {
     const today = new Date();
     const [h, m] = preset.time.split(':').map(Number);
     today.setHours(h, m, 0, 0);
-
     try {
       const res = await fetch('/api/reminders', {
         method: 'POST',
@@ -139,6 +151,16 @@ export default function ReminderPanel() {
       const reminder = await res.json();
       setReminders((prev) => [...prev, reminder]);
     } catch (_) {}
+  }
+
+  async function testReminder(r) {
+    playAlertSound();
+    await fetch('/api/reminders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: r.id, action: 'send' }),
+    });
+    setReminders((prev) => prev.map((x) => x.id === r.id ? { ...x, sent: true } : x));
   }
 
   async function deleteReminder(id) {
@@ -156,21 +178,26 @@ export default function ReminderPanel() {
 
   const past = reminders
     .filter((r) => r.sent)
-    .sort((a, b) => new Date(b.remind_at) - new Date(a.remind_at));
+    .sort((a, b) => new Date(b.remind_at) - new Date(a.remind_at))
+    .slice(0, 5);
 
   return (
     <div style={styles.wrapper}>
-      {/* push status */}
+      {/* notification permission */}
       {!pushEnabled ? (
         <button style={styles.enableBtn} onClick={enablePush}>
-          <span style={styles.enableIcon}>🔔</span>
           tap to enable notifications
         </button>
       ) : (
-        <div style={styles.enabledBadge}>notifications enabled</div>
+        <div style={styles.enabledBadge}>notifications on</div>
       )}
 
       {error && <div style={styles.error}>{error}</div>}
+
+      {/* how it works note */}
+      <div style={styles.note}>
+        Reminders fire while this tab is open. Keep the PWA running in background for best results.
+      </div>
 
       {/* presets */}
       <div style={styles.section}>
@@ -187,7 +214,7 @@ export default function ReminderPanel() {
 
       <div style={styles.divider} />
 
-      {/* custom form */}
+      {/* custom */}
       <div style={styles.section}>
         <div style={styles.sectionLabel}>custom reminder</div>
         <form onSubmit={addReminder} style={styles.form}>
@@ -229,12 +256,10 @@ export default function ReminderPanel() {
               </span>
             </div>
             <div style={styles.itemActions}>
-              <button style={styles.actionBtn} onClick={() => triggerReminder(r)} title="test now">
-                ▶
+              <button style={styles.testBtn} onClick={() => testReminder(r)} title="test sound">
+                test
               </button>
-              <button style={styles.deleteBtn} onClick={() => deleteReminder(r.id)} title="delete">
-                ×
-              </button>
+              <button style={styles.deleteBtn} onClick={() => deleteReminder(r.id)}>×</button>
             </div>
           </div>
         ))}
@@ -246,7 +271,7 @@ export default function ReminderPanel() {
           <div style={styles.section}>
             <div style={styles.sectionLabel}>sent</div>
             {past.map((r) => (
-              <div key={r.id} style={{ ...styles.item, opacity: 0.4 }}>
+              <div key={r.id} style={{ ...styles.item, opacity: 0.45 }}>
                 <div style={styles.itemLeft}>
                   <span style={styles.itemLabel}>{r.label}</span>
                   <span style={styles.itemTime}>
@@ -276,30 +301,35 @@ function urlBase64ToUint8Array(base64String) {
 const styles = {
   wrapper: { display: 'flex', flexDirection: 'column', gap: '14px' },
   enableBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
     background: '#fff8e8',
     border: '1px solid #f0c040',
     color: '#996600',
     padding: '12px',
     fontSize: '13px',
     fontFamily: "'Cairo', sans-serif",
-    fontWeight: '600',
+    fontWeight: '700',
     cursor: 'pointer',
     borderRadius: '10px',
+    textAlign: 'center',
   },
-  enableIcon: { fontSize: '16px' },
   enabledBadge: {
     background: '#e8f5e8',
     border: '1px solid #a0d0a0',
     color: '#2d7a2d',
     padding: '8px 12px',
     fontSize: '12px',
-    fontWeight: '600',
+    fontWeight: '700',
     borderRadius: '8px',
     textAlign: 'center',
+    fontFamily: "'Cairo', sans-serif",
+  },
+  note: {
+    fontSize: '11px',
+    color: '#aaa',
+    background: '#f5f5f0',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    lineHeight: 1.5,
   },
   section: { display: 'flex', flexDirection: 'column', gap: '8px' },
   sectionLabel: {
@@ -325,12 +355,7 @@ const styles = {
     textAlign: 'left',
     borderRadius: '8px',
   },
-  presetTime: {
-    fontWeight: '700',
-    color: '#555',
-    fontSize: '13px',
-    minWidth: '40px',
-  },
+  presetTime: { fontWeight: '700', color: '#555', fontSize: '13px', minWidth: '40px' },
   presetLabel: { color: '#333' },
   divider: { height: '1px', background: '#e0dfd8' },
   form: { display: 'flex', flexDirection: 'column', gap: '8px' },
@@ -368,15 +393,16 @@ const styles = {
   itemLabel: { fontSize: '14px', fontWeight: '600', color: '#1a1a1a' },
   itemTime: { fontSize: '11px', color: '#aaa', fontWeight: '500' },
   itemActions: { display: 'flex', gap: '6px', alignItems: 'center' },
-  actionBtn: {
+  testBtn: {
     background: '#f0f0e8',
     border: '1px solid #ddddd5',
     color: '#555',
-    fontSize: '13px',
-    cursor: 'pointer',
-    padding: '6px 10px',
-    borderRadius: '6px',
+    fontSize: '11px',
+    fontWeight: '700',
     fontFamily: "'Cairo', sans-serif",
+    cursor: 'pointer',
+    padding: '5px 10px',
+    borderRadius: '6px',
   },
   deleteBtn: {
     background: 'none',
@@ -394,6 +420,7 @@ const styles = {
     color: '#c0392b',
     padding: '10px 12px',
     fontSize: '12px',
+    fontFamily: "'Cairo', sans-serif",
     borderRadius: '8px',
   },
 };
