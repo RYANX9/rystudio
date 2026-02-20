@@ -2,10 +2,6 @@
 import { useState } from 'react';
 
 const TAGS = ['study', 'break', 'prayer', 'food', 'other'];
-// mode: 'now' | 'auto' | 'manual'
-// now   = started_at is last entry end, duration = from that until right now (auto-calculated)
-// auto  = started_at is last entry end, user types duration
-// manual = user picks both start and duration
 
 export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
   const [activity, setActivity] = useState('');
@@ -18,7 +14,6 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
 
   const base = lastEntryEnd || new Date().toISOString();
 
-  // derived values per mode
   const resolvedStart = mode === 'manual'
     ? (startedAt ? new Date(startedAt).toISOString() : new Date().toISOString())
     : base;
@@ -66,7 +61,6 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
 
   return (
     <form onSubmit={handleSubmit} style={styles.form}>
-      {/* activity + tag */}
       <div style={styles.row}>
         <input
           style={styles.input}
@@ -80,32 +74,33 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
         </select>
       </div>
 
-      {/* mode selector */}
       <div style={styles.modeRow}>
-        {['now', 'auto', 'manual'].map((m) => (
+        {[
+          { key: 'now', label: 'log now' },
+          { key: 'auto', label: 'set duration' },
+          { key: 'manual', label: 'manual' },
+        ].map(({ key, label }) => (
           <button
-            key={m}
+            key={key}
             type="button"
-            style={{ ...styles.modeBtn, ...(mode === m ? styles.modeBtnActive : {}) }}
-            onClick={() => setMode(m)}
+            style={{ ...styles.modeBtn, ...(mode === key ? styles.modeBtnActive : {}) }}
+            onClick={() => setMode(key)}
           >
-            {m === 'now' ? 'log now' : m}
+            {label}
           </button>
         ))}
       </div>
 
-      {/* mode hint */}
       <div style={styles.hint}>
-        {mode === 'now' && 'starts from last entry end, duration = until right now'}
-        {mode === 'auto' && 'starts from last entry end, you set duration'}
-        {mode === 'manual' && 'you set both start time and duration'}
+        {mode === 'now' && 'duration calculated from last entry until now'}
+        {mode === 'auto' && 'starts from last entry end — you set duration'}
+        {mode === 'manual' && 'set both start time and duration manually'}
       </div>
 
-      {/* duration input - not needed for 'now' */}
       {mode !== 'now' && (
         <div style={styles.row}>
           <input
-            style={{ ...styles.input, maxWidth: '120px' }}
+            style={{ ...styles.input, maxWidth: '130px' }}
             type="number"
             placeholder="duration (min)"
             value={duration}
@@ -125,18 +120,17 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
         </div>
       )}
 
-      {/* time preview */}
-      {(mode === 'now' || (mode !== 'now' && duration)) && endTime && (
+      {endTime && (
         <div style={styles.preview}>
           {formatTime(new Date(resolvedStart))} → {formatTime(endTime)}
-          {mode === 'now' && <span style={styles.previewNote}> ({resolvedDuration} min)</span>}
+          {mode === 'now' && <span style={styles.previewNote}> · {resolvedDuration} min</span>}
         </div>
       )}
 
       {error && <div style={styles.error}>{error}</div>}
 
       <button type="submit" style={styles.submit} disabled={loading}>
-        {loading ? '...' : 'log'}
+        {loading ? '...' : 'log entry'}
       </button>
     </form>
   );
@@ -152,9 +146,9 @@ const styles = {
     flexDirection: 'column',
     gap: '10px',
     padding: '16px',
-    border: '1px solid #2a2a2a',
-    background: '#1a1a1a',
-    borderRadius: '4px',
+    background: '#fff',
+    border: '1px solid #e0dfd8',
+    borderRadius: '10px',
   },
   row: {
     display: 'flex',
@@ -164,73 +158,77 @@ const styles = {
   },
   input: {
     flex: 1,
-    background: '#141414',
-    border: '1px solid #2e2e2e',
-    color: '#e0e0e0',
-    padding: '9px 11px',
+    background: '#f5f5f0',
+    border: '1px solid #ddddd5',
+    color: '#1a1a1a',
+    padding: '10px 12px',
     fontSize: '14px',
+    fontFamily: "'Cairo', sans-serif",
     outline: 'none',
+    borderRadius: '8px',
     minWidth: '80px',
-    borderRadius: '3px',
   },
   select: {
-    background: '#141414',
-    border: '1px solid #2e2e2e',
-    color: '#9a9a9a',
-    padding: '9px 10px',
+    background: '#f5f5f0',
+    border: '1px solid #ddddd5',
+    color: '#555',
+    padding: '10px 10px',
     fontSize: '13px',
+    fontFamily: "'Cairo', sans-serif",
     outline: 'none',
-    borderRadius: '3px',
+    borderRadius: '8px',
   },
   modeRow: {
     display: 'flex',
-    gap: '0',
-    border: '1px solid #2e2e2e',
-    borderRadius: '3px',
-    overflow: 'hidden',
+    gap: '6px',
   },
   modeBtn: {
     flex: 1,
-    background: 'transparent',
-    border: 'none',
-    borderRight: '1px solid #2e2e2e',
-    color: '#666',
+    background: '#f5f5f0',
+    border: '1px solid #ddddd5',
+    color: '#888',
     padding: '8px 6px',
     fontSize: '12px',
+    fontFamily: "'Cairo', sans-serif",
+    fontWeight: '600',
     cursor: 'pointer',
-    letterSpacing: '0.04em',
+    borderRadius: '8px',
   },
   modeBtnActive: {
-    background: '#2a2a2a',
-    color: '#e0e0e0',
+    background: '#1a1a1a',
+    borderColor: '#1a1a1a',
+    color: '#fff',
   },
   hint: {
     fontSize: '11px',
-    color: '#555',
-    fontFamily: 'monospace',
+    color: '#aaa',
     lineHeight: 1.4,
   },
   preview: {
-    fontSize: '12px',
-    color: '#7a7a7a',
-    fontFamily: 'monospace',
+    fontSize: '13px',
+    color: '#555',
+    fontWeight: '600',
+    background: '#f5f5f0',
+    padding: '8px 12px',
+    borderRadius: '6px',
   },
   previewNote: {
-    color: '#555',
+    color: '#aaa',
+    fontWeight: '400',
   },
   error: {
     fontSize: '12px',
-    color: '#e05555',
+    color: '#c0392b',
   },
   submit: {
-    background: '#e0e0e0',
-    color: '#141414',
+    background: '#1a1a1a',
+    color: '#fff',
     border: 'none',
-    padding: '11px',
-    fontSize: '13px',
+    padding: '12px',
+    fontSize: '14px',
+    fontFamily: "'Cairo', sans-serif",
+    fontWeight: '700',
     cursor: 'pointer',
-    fontWeight: '600',
-    letterSpacing: '0.06em',
-    borderRadius: '3px',
+    borderRadius: '8px',
   },
 };
