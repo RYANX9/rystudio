@@ -1,82 +1,138 @@
 'use client';
+import { useState } from 'react';
 
-const TAG_COLORS = {
-  study:  { bg: '#e8f4e8', text: '#2d7a2d' },
-  break:  { bg: '#f0f0e8', text: '#666633' },
-  prayer: { bg: '#e8eef8', text: '#2d4d99' },
-  food:   { bg: '#fdf0e8', text: '#994d00' },
-  other:  { bg: '#f0f0f0', text: '#555555' },
-};
+const TAGS = ['study', 'break', 'prayer', 'food', 'other'];
 
-export default function Timeline({ entries, onDelete }) {
-  if (!entries.length) {
-    return <div style={styles.empty}>nothing logged yet — add your first entry above</div>;
+export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
+  const [activity, setActivity] = useState('');
+  const [tag, setTag] = useState('study');
+  const [mode, setMode] = useState('now');
+  const [duration, setDuration] = useState('');
+  const [startedAt, setStartedAt] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const base = lastEntryEnd || new Date().toISOString();
+
+  const resolvedStart = mode === 'manual'
+    ? (startedAt ? new Date(startedAt).toISOString() : new Date().toISOString())
+    : base;
+
+  const resolvedDuration = mode === 'now'
+    ? Math.max(1, Math.round((Date.now() - new Date(base).getTime()) / 60000))
+    : parseInt(duration) || 0;
+
+  const endTime = resolvedDuration
+    ? new Date(new Date(resolvedStart).getTime() + resolvedDuration * 60000)
+    : null;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!activity.trim()) return;
+    if (mode !== 'now' && !duration) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activity: activity.trim(),
+          tag,
+          started_at: resolvedStart,
+          duration_minutes: resolvedDuration,
+        }),
+      });
+
+      if (!res.ok) throw new Error((await res.json()).error);
+
+      const entry = await res.json();
+      onEntryAdded(entry);
+      setActivity('');
+      setDuration('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const studyMinutes = entries
-    .filter((e) => e.tag === 'study')
-    .reduce((sum, e) => sum + e.duration_minutes, 0);
-
-  const totalMinutes = entries.reduce((sum, e) => sum + e.duration_minutes, 0);
-
-  // newest first
-  const sorted = [...entries].sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
-
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.statsRow}>
-        <div style={styles.stat}>
-          <span style={styles.statVal}>{formatDuration(studyMinutes)}</span>
-          <span style={styles.statLabel}>studied</span>
-        </div>
-        <div style={styles.statDivider} />
-        <div style={styles.stat}>
-          <span style={styles.statVal}>{formatDuration(totalMinutes)}</span>
-          <span style={styles.statLabel}>total logged</span>
-        </div>
-        <div style={styles.statDivider} />
-        <div style={styles.stat}>
-          <span style={styles.statVal}>{entries.length}</span>
-          <span style={styles.statLabel}>entries</span>
-        </div>
+    <form onSubmit={handleSubmit} style={styles.form}>
+      <div style={styles.row}>
+        <input
+          style={styles.input}
+          placeholder="what did you do"
+          value={activity}
+          onChange={(e) => setActivity(e.target.value)}
+          required
+        />
+        <select style={styles.select} value={tag} onChange={(e) => setTag(e.target.value)}>
+          {TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
       </div>
 
-      <div style={styles.list}>
-        {sorted.map((entry) => {
-          const start = new Date(entry.started_at);
-          const end = new Date(start.getTime() + entry.duration_minutes * 60000);
-          const colors = TAG_COLORS[entry.tag] || TAG_COLORS.other;
-
-          return (
-            <div key={entry.id} style={styles.entry}>
-              <div style={styles.timeCol}>
-                <span style={styles.time}>{formatTime(start)}</span>
-                <span style={styles.timeSep}>↓</span>
-                <span style={styles.time}>{formatTime(end)}</span>
-              </div>
-
-              <div style={styles.middle}>
-                <span style={styles.activity}>{entry.activity}</span>
-                <div style={styles.meta}>
-                  <span style={{ ...styles.tag, background: colors.bg, color: colors.text }}>
-                    {entry.tag}
-                  </span>
-                  <span style={styles.dur}>{entry.duration_minutes} min</span>
-                </div>
-              </div>
-
-              <button
-                style={styles.del}
-                onClick={() => onDelete(entry.id)}
-                aria-label="delete"
-              >
-                ×
-              </button>
-            </div>
-          );
-        })}
+      <div style={styles.modeRow}>
+        {[
+          { key: 'now', label: 'log now' },
+          { key: 'auto', label: 'set duration' },
+          { key: 'manual', label: 'manual' },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            style={{ ...styles.modeBtn, ...(mode === key ? styles.modeBtnActive : {}) }}
+            onClick={() => setMode(key)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-    </div>
+
+      <div style={styles.hint}>
+        {mode === 'now' && 'duration calculated from last entry until now'}
+        {mode === 'auto' && 'starts from last entry end — you set duration'}
+        {mode === 'manual' && 'set both start time and duration manually'}
+      </div>
+
+      {mode !== 'now' && (
+        <div style={styles.row}>
+          <input
+            style={{ ...styles.input, maxWidth: '130px' }}
+            type="number"
+            placeholder="duration (min)"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            min="1"
+            required
+          />
+          {mode === 'manual' && (
+            <input
+              style={styles.input}
+              type="datetime-local"
+              value={startedAt}
+              onChange={(e) => setStartedAt(e.target.value)}
+              required
+            />
+          )}
+        </div>
+      )}
+
+      {endTime && (
+        <div style={styles.preview}>
+          {formatTime(new Date(resolvedStart))} → {formatTime(endTime)}
+          {mode === 'now' && <span style={styles.previewNote}> · {resolvedDuration} min</span>}
+        </div>
+      )}
+
+      {error && <div style={styles.error}>{error}</div>}
+
+      <button type="submit" style={styles.submit} disabled={loading}>
+        {loading ? '...' : 'log entry'}
+      </button>
+    </form>
   );
 }
 
@@ -84,123 +140,95 @@ function formatTime(date) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDuration(minutes) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-}
-
 const styles = {
-  wrapper: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  statsRow: {
-    display: 'flex',
-    background: '#fff',
-    border: '1px solid #e0dfd8',
-    borderRadius: '10px',
-    overflow: 'hidden',
-  },
-  stat: {
-    flex: 1,
+  form: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    padding: '12px 8px',
-    gap: '2px',
-  },
-  statVal: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#1a1a1a',
-  },
-  statLabel: {
-    fontSize: '10px',
-    color: '#aaa',
-    fontWeight: '600',
-    letterSpacing: '0.05em',
-  },
-  statDivider: {
-    width: '1px',
-    background: '#e0dfd8',
-    margin: '10px 0',
-  },
-  list: { display: 'flex', flexDirection: 'column', gap: '6px' },
-  entry: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '12px 14px',
+    gap: '10px',
+    padding: '16px',
     background: '#fff',
     border: '1px solid #e0dfd8',
     borderRadius: '10px',
   },
-  timeCol: {
+  row: {
     display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '1px',
-    minWidth: '44px',
-    flexShrink: 0,
-  },
-  time: {
-    fontSize: '11px',
-    fontWeight: '600',
-    color: '#555',
-  },
-  timeSep: {
-    fontSize: '9px',
-    color: '#ccc',
-  },
-  middle: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    minWidth: 0,
-  },
-  activity: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#1a1a1a',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  meta: {
-    display: 'flex',
-    alignItems: 'center',
     gap: '8px',
+    flexWrap: 'wrap',
+    alignItems: 'center',
   },
-  tag: {
-    fontSize: '10px',
-    fontWeight: '700',
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
-    padding: '2px 7px',
-    borderRadius: '4px',
+  input: {
+    flex: 1,
+    background: '#f5f5f0',
+    border: '1px solid #ddddd5',
+    color: '#1a1a1a',
+    padding: '10px 12px',
+    fontSize: '14px',
+    fontFamily: "'Cairo', sans-serif",
+    outline: 'none',
+    borderRadius: '8px',
+    minWidth: '80px',
   },
-  dur: {
+  select: {
+    background: '#f5f5f0',
+    border: '1px solid #ddddd5',
+    color: '#555',
+    padding: '10px 10px',
+    fontSize: '13px',
+    fontFamily: "'Cairo', sans-serif",
+    outline: 'none',
+    borderRadius: '8px',
+  },
+  modeRow: {
+    display: 'flex',
+    gap: '6px',
+  },
+  modeBtn: {
+    flex: 1,
+    background: '#f5f5f0',
+    border: '1px solid #ddddd5',
+    color: '#888',
+    padding: '8px 6px',
+    fontSize: '12px',
+    fontFamily: "'Cairo', sans-serif",
+    fontWeight: '600',
+    cursor: 'pointer',
+    borderRadius: '8px',
+  },
+  modeBtnActive: {
+    background: '#1a1a1a',
+    borderColor: '#1a1a1a',
+    color: '#fff',
+  },
+  hint: {
     fontSize: '11px',
     color: '#aaa',
-    fontWeight: '500',
+    lineHeight: 1.4,
   },
-  del: {
-    background: 'none',
-    border: 'none',
-    color: '#ccc',
-    fontSize: '20px',
-    cursor: 'pointer',
-    padding: '0 2px',
-    flexShrink: 0,
-    lineHeight: 1,
-    borderRadius: '4px',
-  },
-  empty: {
+  preview: {
     fontSize: '13px',
-    color: '#bbb',
-    padding: '32px 0',
-    textAlign: 'center',
-    lineHeight: 1.6,
+    color: '#555',
+    fontWeight: '600',
+    background: '#f5f5f0',
+    padding: '8px 12px',
+    borderRadius: '6px',
+  },
+  previewNote: {
+    color: '#aaa',
+    fontWeight: '400',
+  },
+  error: {
+    fontSize: '12px',
+    color: '#c0392b',
+  },
+  submit: {
+    background: '#1a1a1a',
+    color: '#fff',
+    border: 'none',
+    padding: '12px',
+    fontSize: '14px',
+    fontFamily: "'Cairo', sans-serif",
+    fontWeight: '700',
+    cursor: 'pointer',
+    borderRadius: '8px',
   },
 };
