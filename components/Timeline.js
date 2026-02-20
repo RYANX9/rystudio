@@ -80,7 +80,7 @@ const styles = {
   },
   stat: {
     fontSize: '12px',
-    color: '#555',
+    color: '#7a7a7a',
     padding: '0 4px',
     fontFamily: 'monospace',
   },
@@ -94,8 +94,9 @@ const styles = {
     alignItems: 'center',
     gap: '10px',
     padding: '10px 12px',
-    background: '#111',
-    border: '1px solid #1a1a1a',
+    background: '#1a1a1a',
+    border: '1px solid #242424',
+    borderRadius: '3px',
   },
   times: {
     display: 'flex',
@@ -106,16 +107,16 @@ const styles = {
   },
   time: {
     fontSize: '12px',
-    color: '#555',
+    color: '#7a7a7a',
     fontFamily: 'monospace',
   },
   arrow: {
     fontSize: '10px',
-    color: '#333',
+    color: '#444',
   },
   dur: {
     fontSize: '11px',
-    color: '#333',
+    color: '#4a4a4a',
     marginLeft: '4px',
     fontFamily: 'monospace',
   },
@@ -133,7 +134,7 @@ const styles = {
   },
   activity: {
     fontSize: '14px',
-    color: '#ddd',
+    color: '#d0d0d0',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -141,7 +142,7 @@ const styles = {
   del: {
     background: 'none',
     border: 'none',
-    color: '#333',
+    color: '#3a3a3a',
     fontSize: '18px',
     cursor: 'pointer',
     padding: '0 4px',
@@ -150,7 +151,7 @@ const styles = {
   },
   empty: {
     fontSize: '13px',
-    color: '#333',
+    color: '#444',
     padding: '20px 0',
     textAlign: 'center',
   },
