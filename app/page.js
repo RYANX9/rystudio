@@ -128,8 +128,8 @@ function formatDate(str) {
 const styles = {
   main: {
     minHeight: '100vh',
-    background: '#0a0a0a',
-    color: '#fff',
+    background: '#141414',
+    color: '#e0e0e0',
     fontFamily: "'Courier New', Courier, monospace",
     maxWidth: '480px',
     margin: '0 auto',
@@ -141,11 +141,11 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '16px',
-    borderBottom: '1px solid #1a1a1a',
+    borderBottom: '1px solid #222',
   },
   appName: {
     fontSize: '13px',
-    color: '#444',
+    color: '#4a4a4a',
     letterSpacing: '0.1em',
   },
   dateNav: {
@@ -156,7 +156,7 @@ const styles = {
   navBtn: {
     background: 'none',
     border: 'none',
-    color: '#555',
+    color: '#6a6a6a',
     fontSize: '18px',
     cursor: 'pointer',
     padding: '0 4px',
@@ -164,28 +164,28 @@ const styles = {
   },
   dateLabel: {
     fontSize: '13px',
-    color: '#888',
+    color: '#9a9a9a',
     minWidth: '80px',
     textAlign: 'center',
   },
   tabs: {
     display: 'flex',
-    borderBottom: '1px solid #1a1a1a',
+    borderBottom: '1px solid #222',
   },
   tab: {
     flex: 1,
     background: 'none',
     border: 'none',
     borderBottom: '2px solid transparent',
-    color: '#444',
+    color: '#4a4a4a',
     padding: '12px',
     fontSize: '12px',
     letterSpacing: '0.08em',
     cursor: 'pointer',
   },
   tabActive: {
-    color: '#fff',
-    borderBottomColor: '#fff',
+    color: '#e0e0e0',
+    borderBottomColor: '#e0e0e0',
   },
   content: {
     flex: 1,
@@ -196,11 +196,11 @@ const styles = {
   },
   divider: {
     height: '1px',
-    background: '#1a1a1a',
+    background: '#222',
   },
   loading: {
     fontSize: '12px',
-    color: '#333',
+    color: '#444',
     textAlign: 'center',
     padding: '20px 0',
   },
