@@ -6,7 +6,7 @@ import ReminderPanel from '@/components/ReminderPanel';
 
 export default function Page() {
   const [entries, setEntries] = useState([]);
-  const [tab, setTab] = useState('log'); // 'log' | 'reminders'
+  const [tab, setTab] = useState('log');
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +28,6 @@ export default function Page() {
   }, [selectedDate, fetchEntries]);
 
   function handleEntryAdded(entry) {
-    // only add to view if it belongs to the selected date
     const entryDate = entry.started_at.slice(0, 10);
     if (entryDate === selectedDate) {
       setEntries((prev) => [...prev, entry].sort((a, b) =>
@@ -42,7 +41,6 @@ export default function Page() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }
 
-  // last entry's end time for auto-chaining in EntryForm
   const lastEntryEnd = entries.length > 0
     ? (() => {
         const last = entries[entries.length - 1];
@@ -62,7 +60,6 @@ export default function Page() {
 
   return (
     <main style={styles.main}>
-      {/* header */}
       <div style={styles.header}>
         <span style={styles.appName}>tracker</span>
         <div style={styles.dateNav}>
@@ -71,7 +68,7 @@ export default function Page() {
             {isToday ? 'today' : formatDate(selectedDate)}
           </span>
           <button
-            style={{ ...styles.navBtn, opacity: isToday ? 0.2 : 1 }}
+            style={{ ...styles.navBtn, opacity: isToday ? 0.25 : 1 }}
             onClick={() => shiftDate(1)}
             disabled={isToday}
           >
@@ -80,7 +77,6 @@ export default function Page() {
         </div>
       </div>
 
-      {/* tabs */}
       <div style={styles.tabs}>
         <button
           style={{ ...styles.tab, ...(tab === 'log' ? styles.tabActive : {}) }}
@@ -96,7 +92,6 @@ export default function Page() {
         </button>
       </div>
 
-      {/* content */}
       <div style={styles.content}>
         {tab === 'log' && (
           <>
@@ -108,7 +103,6 @@ export default function Page() {
             }
           </>
         )}
-
         {tab === 'reminders' && <ReminderPanel />}
       </div>
     </main>
@@ -128,9 +122,9 @@ function formatDate(str) {
 const styles = {
   main: {
     minHeight: '100vh',
-    background: '#141414',
-    color: '#e0e0e0',
-    fontFamily: "'Courier New', Courier, monospace",
+    background: '#f5f5f0',
+    color: '#1a1a1a',
+    fontFamily: "'Cairo', sans-serif",
     maxWidth: '480px',
     margin: '0 auto',
     display: 'flex',
@@ -140,13 +134,15 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '16px',
-    borderBottom: '1px solid #222',
+    padding: '16px 20px',
+    borderBottom: '1px solid #e0dfd8',
+    background: '#fff',
   },
   appName: {
-    fontSize: '13px',
-    color: '#4a4a4a',
-    letterSpacing: '0.1em',
+    fontSize: '15px',
+    fontWeight: '700',
+    color: '#888',
+    letterSpacing: '0.08em',
   },
   dateNav: {
     display: 'flex',
@@ -154,38 +150,46 @@ const styles = {
     gap: '12px',
   },
   navBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#6a6a6a',
+    background: '#f0efe8',
+    border: '1px solid #e0dfd8',
+    color: '#555',
     fontSize: '18px',
     cursor: 'pointer',
-    padding: '0 4px',
+    width: '32px',
+    height: '32px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '6px',
     lineHeight: 1,
   },
   dateLabel: {
-    fontSize: '13px',
-    color: '#9a9a9a',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#333',
     minWidth: '80px',
     textAlign: 'center',
   },
   tabs: {
     display: 'flex',
-    borderBottom: '1px solid #222',
+    background: '#fff',
+    borderBottom: '1px solid #e0dfd8',
   },
   tab: {
     flex: 1,
     background: 'none',
     border: 'none',
     borderBottom: '2px solid transparent',
-    color: '#4a4a4a',
-    padding: '12px',
-    fontSize: '12px',
-    letterSpacing: '0.08em',
+    color: '#aaa',
+    padding: '13px',
+    fontSize: '14px',
+    fontWeight: '600',
+    fontFamily: "'Cairo', sans-serif",
     cursor: 'pointer',
   },
   tabActive: {
-    color: '#e0e0e0',
-    borderBottomColor: '#e0e0e0',
+    color: '#1a1a1a',
+    borderBottomColor: '#1a1a1a',
   },
   content: {
     flex: 1,
@@ -196,12 +200,12 @@ const styles = {
   },
   divider: {
     height: '1px',
-    background: '#222',
+    background: '#e0dfd8',
   },
   loading: {
-    fontSize: '12px',
-    color: '#444',
+    fontSize: '13px',
+    color: '#aaa',
     textAlign: 'center',
-    padding: '20px 0',
+    padding: '24px 0',
   },
 };
