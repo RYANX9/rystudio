@@ -3,6 +3,9 @@ import { useState, useEffect, useCallback } from 'react';
 import EntryForm from '@/components/EntryForm';
 import Timeline from '@/components/Timeline';
 import ReminderPanel from '@/components/ReminderPanel';
+import TodoPanel from '@/components/TodoPanel';
+
+const STUDY_GOAL_MINUTES = 360;
 
 export default function Page() {
   const [entries, setEntries] = useState([]);
@@ -13,7 +16,8 @@ export default function Page() {
   const fetchEntries = useCallback(async (date) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/entries?date=${date}`);
+      const offset = -new Date().getTimezoneOffset();
+      const res = await fetch(`/api/entries?date=${date}&tz=${offset}`);
       const data = await res.json();
       setEntries(Array.isArray(data) ? data : []);
     } catch (_) {
@@ -28,11 +32,14 @@ export default function Page() {
   }, [selectedDate, fetchEntries]);
 
   function handleEntryAdded(entry) {
-    const entryDate = entry.started_at.slice(0, 10);
+    const entryDate = new Date(
+      new Date(entry.started_at).getTime() - new Date().getTimezoneOffset() * 60000
+    ).toISOString().slice(0, 10);
+
     if (entryDate === selectedDate) {
-      setEntries((prev) => [...prev, entry].sort((a, b) =>
-        new Date(a.started_at) - new Date(b.started_at)
-      ));
+      setEntries((prev) =>
+        [...prev, entry].sort((a, b) => new Date(a.started_at) - new Date(b.started_at))
+      );
     }
   }
 
@@ -41,22 +48,33 @@ export default function Page() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }
 
-  const lastEntryEnd = entries.length > 0
-    ? (() => {
-        const last = entries[entries.length - 1];
-        return new Date(
-          new Date(last.started_at).getTime() + last.duration_minutes * 60000
-        ).toISOString();
-      })()
-    : null;
+  const lastEntryEnd =
+    entries.length > 0
+      ? (() => {
+          const last = entries[entries.length - 1];
+          return new Date(
+            new Date(last.started_at).getTime() + last.duration_minutes * 60000
+          ).toISOString();
+        })()
+      : null;
 
   function shiftDate(days) {
-    const d = new Date(selectedDate);
+    const d = new Date(selectedDate + 'T12:00:00');
     d.setDate(d.getDate() + days);
     setSelectedDate(d.toISOString().slice(0, 10));
   }
 
   const isToday = selectedDate === todayStr();
+
+  const studyMinutes = entries
+    .filter((e) => e.tag === 'study')
+    .reduce((sum, e) => sum + e.duration_minutes, 0);
+
+  const studyPct = Math.min(100, Math.round((studyMinutes / STUDY_GOAL_MINUTES) * 100));
+  const fillColor =
+    studyPct >= 100 ? '#2d7a2d' :
+    studyPct >= 60  ? '#5a9a40' :
+    studyPct >= 30  ? '#c8a030' : '#c06030';
 
   return (
     <main style={styles.main}>
@@ -77,19 +95,25 @@ export default function Page() {
         </div>
       </div>
 
+      <div style={styles.progressWrap}>
+        <div style={styles.progressBar}>
+          <div style={{ ...styles.progressFill, width: `${studyPct}%`, background: fillColor }} />
+        </div>
+        <span style={styles.progressLabel}>
+          {formatDuration(studyMinutes)} studied · {studyPct}% of 6h goal
+        </span>
+      </div>
+
       <div style={styles.tabs}>
-        <button
-          style={{ ...styles.tab, ...(tab === 'log' ? styles.tabActive : {}) }}
-          onClick={() => setTab('log')}
-        >
-          log
-        </button>
-        <button
-          style={{ ...styles.tab, ...(tab === 'reminders' ? styles.tabActive : {}) }}
-          onClick={() => setTab('reminders')}
-        >
-          reminders
-        </button>
+        {['log', 'todo', 'reminders'].map((t) => (
+          <button
+            key={t}
+            style={{ ...styles.tab, ...(tab === t ? styles.tabActive : {}) }}
+            onClick={() => setTab(t)}
+          >
+            {t}
+          </button>
+        ))}
       </div>
 
       <div style={styles.content}>
@@ -103,6 +127,7 @@ export default function Page() {
             }
           </>
         )}
+        {tab === 'todo' && <TodoPanel date={selectedDate} />}
         {tab === 'reminders' && <ReminderPanel />}
       </div>
     </main>
@@ -110,13 +135,24 @@ export default function Page() {
 }
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
 }
 
 function formatDate(str) {
-  return new Date(str).toLocaleDateString([], {
-    weekday: 'short', month: 'short', day: 'numeric'
+  return new Date(str + 'T12:00:00').toLocaleDateString([], {
+    weekday: 'short', month: 'short', day: 'numeric',
   });
+}
+
+function formatDuration(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
 }
 
 const styles = {
@@ -169,6 +205,31 @@ const styles = {
     color: '#333',
     minWidth: '80px',
     textAlign: 'center',
+  },
+  progressWrap: {
+    padding: '8px 16px 10px',
+    background: '#fff',
+    borderBottom: '1px solid #e0dfd8',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '5px',
+  },
+  progressBar: {
+    height: '5px',
+    background: '#e8e8e0',
+    borderRadius: '3px',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: '3px',
+    transition: 'width 0.5s ease, background 0.3s ease',
+  },
+  progressLabel: {
+    fontSize: '11px',
+    color: '#aaa',
+    fontWeight: '600',
+    letterSpacing: '0.02em',
   },
   tabs: {
     display: 'flex',
