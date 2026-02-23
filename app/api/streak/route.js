@@ -3,20 +3,20 @@ import sql from '@/lib/db';
 
 const GOAL_MINUTES = 360;
 
-// GET /api/streak?tz=60
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const tz = parseInt(searchParams.get('tz') || '0', 10);
+  const tzHours = tz / 60.0;
 
   try {
     const rows = await sql`
       SELECT
-        DATE(started_at + (${tz} || ' minutes')::interval) AS date,
+        DATE(started_at + make_interval(hours => ${tzHours})) AS date,
         SUM(duration_minutes)::int AS study_minutes
       FROM entries
       WHERE tag = 'study'
         AND started_at >= NOW() - INTERVAL '60 days'
-      GROUP BY DATE(started_at + (${tz} || ' minutes')::interval)
+      GROUP BY DATE(started_at + make_interval(hours => ${tzHours}))
       ORDER BY date DESC
     `;
 
