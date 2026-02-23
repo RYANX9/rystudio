@@ -4,6 +4,7 @@ import EntryForm from '@/components/EntryForm';
 import Timeline from '@/components/Timeline';
 import ReminderPanel from '@/components/ReminderPanel';
 import TodoPanel from '@/components/TodoPanel';
+import WeeklyView from '@/components/WeeklyView';
 
 const STUDY_GOAL_MINUTES = 360;
 
@@ -12,12 +13,13 @@ export default function Page() {
   const [tab, setTab] = useState('log');
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [loading, setLoading] = useState(false);
+  const [streak, setStreak] = useState(null);
 
   const fetchEntries = useCallback(async (date) => {
     setLoading(true);
     try {
-      const offset = -new Date().getTimezoneOffset();
-      const res = await fetch(`/api/entries?date=${date}&tz=${offset}`);
+      const tz = -new Date().getTimezoneOffset();
+      const res = await fetch(`/api/entries?date=${date}&tz=${tz}`);
       const data = await res.json();
       setEntries(Array.isArray(data) ? data : []);
     } catch (_) {
@@ -30,6 +32,14 @@ export default function Page() {
   useEffect(() => {
     fetchEntries(selectedDate);
   }, [selectedDate, fetchEntries]);
+
+  useEffect(() => {
+    const tz = -new Date().getTimezoneOffset();
+    fetch(`/api/streak?tz=${tz}`)
+      .then((r) => r.json())
+      .then((d) => setStreak(d))
+      .catch(() => {});
+  }, [entries]); // refresh streak whenever entries change
 
   function handleEntryAdded(entry) {
     const entryDate = new Date(
@@ -76,10 +86,17 @@ export default function Page() {
     studyPct >= 60  ? '#5a9a40' :
     studyPct >= 30  ? '#c8a030' : '#c06030';
 
+  const TABS = ['log', 'todo', 'week', 'reminders'];
+
   return (
     <main style={styles.main}>
       <div style={styles.header}>
-        <span style={styles.appName}>tracker</span>
+        <div style={styles.headerLeft}>
+          <span style={styles.appName}>tracker</span>
+          {streak !== null && streak.streak > 0 && (
+            <span style={styles.streakBadge}>{streak.streak}d</span>
+          )}
+        </div>
         <div style={styles.dateNav}>
           <button style={styles.navBtn} onClick={() => shiftDate(-1)}>‹</button>
           <span style={styles.dateLabel}>
@@ -105,7 +122,7 @@ export default function Page() {
       </div>
 
       <div style={styles.tabs}>
-        {['log', 'todo', 'reminders'].map((t) => (
+        {TABS.map((t) => (
           <button
             key={t}
             style={{ ...styles.tab, ...(tab === t ? styles.tabActive : {}) }}
@@ -128,6 +145,7 @@ export default function Page() {
           </>
         )}
         {tab === 'todo' && <TodoPanel date={selectedDate} />}
+        {tab === 'week' && <WeeklyView />}
         {tab === 'reminders' && <ReminderPanel />}
       </div>
     </main>
@@ -137,8 +155,7 @@ export default function Page() {
 function todayStr() {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 10);
+    .toISOString().slice(0, 10);
 }
 
 function formatDate(str) {
@@ -174,11 +191,26 @@ const styles = {
     borderBottom: '1px solid #e0dfd8',
     background: '#fff',
   },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
   appName: {
     fontSize: '15px',
     fontWeight: '700',
     color: '#888',
     letterSpacing: '0.08em',
+  },
+  streakBadge: {
+    fontSize: '11px',
+    fontWeight: '700',
+    color: '#2d7a2d',
+    background: '#e8f4e8',
+    border: '1px solid #b0d8b0',
+    padding: '2px 7px',
+    borderRadius: '20px',
+    letterSpacing: '0.02em',
   },
   dateNav: {
     display: 'flex',
@@ -242,8 +274,8 @@ const styles = {
     border: 'none',
     borderBottom: '2px solid transparent',
     color: '#aaa',
-    padding: '13px',
-    fontSize: '14px',
+    padding: '11px 4px',
+    fontSize: '13px',
     fontWeight: '600',
     fontFamily: "'Cairo', sans-serif",
     cursor: 'pointer',
