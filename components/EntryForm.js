@@ -1,4 +1,3 @@
-//components/EntryForm.js
 'use client';
 import { useState } from 'react';
 
