@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-const GOAL = 360; // minutes
+const GOAL = 360;
 
 const TAG_COLORS = {
   study:  '#2d7a2d',
@@ -12,20 +12,18 @@ const TAG_COLORS = {
 };
 
 const BLOCK_WINDOWS = [
-  { label: 'B1', start: 13 * 60 + 5,  end: 16 * 60 },      // 13:05–16:00
-  { label: 'B2', start: 17 * 60,       end: 18 * 60 + 20 }, // 17:00–18:20
-  { label: 'B3', start: 22 * 60 + 30,  end: 25 * 60 },      // 22:30–01:00 (next day as 25h)
+  { label: 'B1', start: 13 * 60 + 5,  end: 16 * 60 },
+  { label: 'B2', start: 17 * 60,       end: 18 * 60 + 20 },
+  { label: 'B3', start: 22 * 60 + 30,  end: 25 * 60 },
 ];
 
 export default function WeeklyView() {
-  const [weekData, setWeekData] = useState([]);   // array of { date, tags: {study, prayer, ...} }
+  const [weekData, setWeekData] = useState([]);
   const [streak, setStreak] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(null); // date string for detail view
+  const [selectedDay, setSelectedDay] = useState(null);
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
@@ -37,13 +35,19 @@ export default function WeeklyView() {
         fetch(`/api/stats?from=${from}&to=${to}&tz=${tz}`),
         fetch(`/api/streak?tz=${tz}`),
       ]);
+
       const stats = await statsRes.json();
       const streakData = await streakRes.json();
+
+      // log to confirm what we're getting
+      console.log('stats raw:', stats);
+      console.log('weekRange:', from, to);
 
       setStreak(streakData);
       setWeekData(buildWeekData(from, to, Array.isArray(stats) ? stats : []));
       setSelectedDay(todayStr());
-    } catch (_) {
+    } catch (err) {
+      console.error('WeeklyView load error:', err);
       setWeekData([]);
     } finally {
       setLoading(false);
@@ -57,7 +61,6 @@ export default function WeeklyView() {
   return (
     <div style={s.wrapper}>
 
-      {/* streak */}
       <div style={s.streakRow}>
         <div style={s.streakBox}>
           <span style={s.streakNum}>{streak?.streak ?? 0}</span>
@@ -70,7 +73,6 @@ export default function WeeklyView() {
         </div>
       </div>
 
-      {/* 7-day bars */}
       <div style={s.barsWrap}>
         {weekData.map((day) => {
           const studyMin = day.tags.study || 0;
@@ -79,18 +81,17 @@ export default function WeeklyView() {
           const isToday = day.date === todayStr();
 
           return (
-            <div
-              key={day.date}
-              style={s.barCol}
-              onClick={() => setSelectedDay(day.date)}
-            >
+            <div key={day.date} style={s.barCol} onClick={() => setSelectedDay(day.date)}>
               <div style={s.barTrack}>
                 <div
                   style={{
                     ...s.barFill,
-                    height: `${pct}%`,
-                    background: pct >= 100 ? '#2d7a2d' : pct >= 50 ? '#5a9a40' : pct > 0 ? '#c8a030' : '#e8e8e0',
-                    opacity: isSelected ? 1 : 0.6,
+                    height: `${Math.max(pct, pct > 0 ? 3 : 0)}%`,
+                    background:
+                      pct >= 100 ? '#2d7a2d' :
+                      pct >= 50  ? '#5a9a40' :
+                      pct > 0    ? '#c8a030' : 'transparent',
+                    opacity: isSelected ? 1 : 0.65,
                   }}
                 />
                 {pct >= 100 && <div style={s.goalDot} />}
@@ -107,7 +108,6 @@ export default function WeeklyView() {
         })}
       </div>
 
-      {/* selected day detail */}
       {selected && (
         <div style={s.detail}>
           <div style={s.detailHeader}>
@@ -119,47 +119,46 @@ export default function WeeklyView() {
             </span>
           </div>
 
-          {/* tag breakdown */}
           <div style={s.tagBreakdown}>
-            {Object.entries(selected.tags)
-              .sort((a, b) => b[1] - a[1])
-              .map(([tag, min]) => (
-                <div key={tag} style={s.tagRow}>
-                  <div style={s.tagRowLeft}>
-                    <div style={{ ...s.tagDot, background: TAG_COLORS[tag] || '#999' }} />
-                    <span style={s.tagName}>{tag}</span>
-                  </div>
-                  <div style={s.tagBarWrap}>
-                    <div
-                      style={{
-                        ...s.tagBarFill,
-                        width: `${Math.min(100, Math.round((min / Math.max(...Object.values(selected.tags))) * 100))}%`,
-                        background: TAG_COLORS[tag] || '#999',
-                        opacity: 0.25,
-                      }}
-                    />
-                  </div>
-                  <span style={s.tagMin}>{formatDur(min)}</span>
-                </div>
-              ))}
             {Object.keys(selected.tags).length === 0 && (
               <div style={s.noData}>nothing logged</div>
             )}
+            {Object.entries(selected.tags)
+              .sort((a, b) => b[1] - a[1])
+              .map(([tag, min]) => {
+                const maxMin = Math.max(...Object.values(selected.tags));
+                return (
+                  <div key={tag} style={s.tagRow}>
+                    <div style={s.tagRowLeft}>
+                      <div style={{ ...s.tagDot, background: TAG_COLORS[tag] || '#999' }} />
+                      <span style={s.tagName}>{tag}</span>
+                    </div>
+                    <div style={s.tagBarWrap}>
+                      <div
+                        style={{
+                          ...s.tagBarFill,
+                          width: `${Math.round((min / maxMin) * 100)}%`,
+                          background: TAG_COLORS[tag] || '#999',
+                          opacity: 0.3,
+                        }}
+                      />
+                    </div>
+                    <span style={s.tagMin}>{formatDur(min)}</span>
+                  </div>
+                );
+              })}
           </div>
 
-          {/* block completion — derived from study entries timing */}
-          <BlockStatus entries={selected.studyEntries} date={selected.date} />
+          <BlockStatus entries={selected.studyEntries} />
         </div>
       )}
 
-      {/* export */}
       <ExportButton weekData={weekData} streak={streak} />
     </div>
   );
 }
 
-// infers block completion from entry start times
-function BlockStatus({ entries, date }) {
+function BlockStatus({ entries }) {
   if (!entries || entries.length === 0) {
     return (
       <div style={s.blocks}>
@@ -174,12 +173,11 @@ function BlockStatus({ entries, date }) {
     const covered = entries.reduce((acc, e) => {
       const startMin = timeToMin(e.started_at);
       const endMin = startMin + e.duration_minutes;
-      // overlap with block window
       const overlapStart = Math.max(startMin, block.start);
       const overlapEnd = Math.min(endMin, block.end);
       return acc + Math.max(0, overlapEnd - overlapStart);
     }, 0);
-    return covered >= 20; // at least 20 min in that window = counts
+    return covered >= 20;
   });
 
   return (
@@ -199,68 +197,62 @@ function ExportButton({ weekData, streak }) {
     weekData.forEach((day) => {
       const label = day.date === todayStr() ? 'today' : formatDate(day.date);
       const study = formatDur(day.tags.study || 0);
-      const scroll = day.tags.other ? ` | other: ${formatDur(day.tags.other)}` : '';
-      lines.push(`${label}: ${study} study${scroll}`);
+      const other = day.tags.other ? ` | other: ${formatDur(day.tags.other)}` : '';
+      lines.push(`${label}: ${study} study${other}`);
     });
     lines.push('');
-    lines.push(`total study: ${formatDur(weekData.reduce((s, d) => s + (d.tags.study || 0), 0))}`);
+    lines.push(`total study: ${formatDur(weekData.reduce((sum, d) => sum + (d.tags.study || 0), 0))}`);
     return lines.join('\n');
   }
 
-  function copy() {
-    navigator.clipboard.writeText(generate()).catch(() => {});
-  }
-
   return (
-    <button style={s.exportBtn} onClick={copy}>
+    <button style={s.exportBtn} onClick={() => navigator.clipboard.writeText(generate()).catch(() => {})}>
       copy week summary
     </button>
   );
 }
 
-// helpers
-
-function weekRange() {
-  const today = new Date(todayStr() + 'T12:00:00Z');
-  const day = today.getUTCDay(); // 0=Sun
-  const monday = new Date(today);
-  monday.setUTCDate(today.getUTCDate() - ((day + 6) % 7));
-  const sunday = new Date(monday);
-  sunday.setUTCDate(monday.getUTCDate() + 6);
-  return {
-    from: monday.toISOString().slice(0, 10),
-    to:   sunday.toISOString().slice(0, 10),
-  };
+// THE FIX: normalize date keys consistently using UTC date string
+function normalizeDate(val) {
+  if (!val) return '';
+  // Postgres DATE comes back as a JS Date object at midnight UTC
+  // e.g. 2025-02-23T00:00:00.000Z → '2025-02-23'
+  if (val instanceof Date) return val.toISOString().slice(0, 10);
+  // If it's already a string like '2025-02-23' or '2025-02-23T00:00:00.000Z'
+  return String(val).slice(0, 10);
 }
 
 function buildWeekData(from, to, rows) {
+  // build all days in range
   const days = [];
   const cursor = new Date(from + 'T12:00:00Z');
   const end = new Date(to + 'T12:00:00Z');
-
   while (cursor <= end) {
     days.push(cursor.toISOString().slice(0, 10));
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
-  // group rows by date+tag
+  // group by normalized date key
   const map = {};
   rows.forEach((r) => {
-    const d = typeof r.date === 'string' ? r.date : r.date.toISOString().slice(0, 10);
+    const d = normalizeDate(r.date);
+    if (!d) return;
     if (!map[d]) map[d] = {};
     map[d][r.tag] = r.total_minutes;
   });
 
+  console.log('buildWeekData days:', days);
+  console.log('buildWeekData map keys:', Object.keys(map));
+
   return days.map((date) => ({
     date,
     tags: map[date] || {},
-    studyEntries: [], // entries detail not fetched here; block status uses time-based inference
+    studyEntries: [],
   }));
 }
 
 function timeToMin(isoString) {
   const d = new Date(isoString);
-  // local minutes since midnight
   const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
   return local.getUTCHours() * 60 + local.getUTCMinutes();
 }
@@ -269,6 +261,19 @@ function todayStr() {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
     .toISOString().slice(0, 10);
+}
+
+function weekRange() {
+  const today = new Date(todayStr() + 'T12:00:00Z');
+  const day = today.getUTCDay();
+  const monday = new Date(today);
+  monday.setUTCDate(today.getUTCDate() - ((day + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return {
+    from: monday.toISOString().slice(0, 10),
+    to:   sunday.toISOString().slice(0, 10),
+  };
 }
 
 function dayLabel(dateStr) {
@@ -294,20 +299,15 @@ function formatDur(minutes) {
 const s = {
   wrapper: { display: 'flex', flexDirection: 'column', gap: '14px' },
   loading: { fontSize: '13px', color: '#aaa', textAlign: 'center', padding: '32px 0' },
-
   streakRow: {
     display: 'flex', alignItems: 'center', gap: '14px',
     padding: '14px 16px', background: '#fff',
     border: '1px solid #e0dfd8', borderRadius: '10px',
   },
-  streakBox: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    minWidth: '48px',
-  },
+  streakBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '48px' },
   streakNum: { fontSize: '28px', fontWeight: '700', color: '#1a1a1a', lineHeight: 1 },
   streakLabel: { fontSize: '10px', color: '#aaa', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.06em' },
   streakNote: { fontSize: '13px', color: '#666', lineHeight: 1.4 },
-
   barsWrap: {
     display: 'flex', gap: '6px', alignItems: 'flex-end',
     padding: '14px 16px', background: '#fff',
@@ -316,27 +316,19 @@ const s = {
   },
   barCol: {
     flex: 1, display: 'flex', flexDirection: 'column',
-    alignItems: 'center', gap: '5px', height: '100%',
-    cursor: 'pointer',
+    alignItems: 'center', gap: '5px', height: '100%', cursor: 'pointer',
   },
   barTrack: {
     flex: 1, width: '100%', background: '#f0f0e8',
     borderRadius: '4px', overflow: 'hidden', position: 'relative',
     display: 'flex', alignItems: 'flex-end',
   },
-  barFill: {
-    width: '100%', borderRadius: '4px',
-    transition: 'height 0.4s ease',
-    minHeight: '2px',
-  },
+  barFill: { width: '100%', borderRadius: '4px', transition: 'height 0.4s ease' },
   goalDot: {
-    position: 'absolute', top: '4px', left: '50%',
-    transform: 'translateX(-50%)',
-    width: '5px', height: '5px',
-    borderRadius: '50%', background: '#2d7a2d',
+    position: 'absolute', top: '4px', left: '50%', transform: 'translateX(-50%)',
+    width: '5px', height: '5px', borderRadius: '50%', background: '#2d7a2d',
   },
   barDay: { fontSize: '11px', letterSpacing: '0.02em' },
-
   detail: {
     display: 'flex', flexDirection: 'column', gap: '10px',
     padding: '14px 16px', background: '#fff',
@@ -345,7 +337,6 @@ const s = {
   detailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
   detailDate: { fontSize: '14px', fontWeight: '700', color: '#1a1a1a' },
   detailStudy: { fontSize: '13px', color: '#2d7a2d', fontWeight: '600' },
-
   tagBreakdown: { display: 'flex', flexDirection: 'column', gap: '6px' },
   tagRow: { display: 'flex', alignItems: 'center', gap: '8px' },
   tagRowLeft: { display: 'flex', alignItems: 'center', gap: '6px', minWidth: '70px' },
@@ -357,27 +348,21 @@ const s = {
   },
   tagBarFill: {
     position: 'absolute', top: 0, left: 0,
-    height: '100%', borderRadius: '4px',
-    transition: 'width 0.4s ease',
+    height: '100%', borderRadius: '4px', transition: 'width 0.4s ease',
   },
   tagMin: { fontSize: '11px', color: '#888', fontWeight: '600', minWidth: '36px', textAlign: 'right' },
   noData: { fontSize: '12px', color: '#bbb', padding: '4px 0' },
-
   blocks: { display: 'flex', gap: '8px' },
   blockPill: {
     flex: 1, textAlign: 'center', padding: '6px 0',
-    fontSize: '12px', fontWeight: '700',
-    borderRadius: '6px',
+    fontSize: '12px', fontWeight: '700', borderRadius: '6px',
   },
   blockDone: { background: '#e8f4e8', color: '#2d7a2d' },
   blockMiss: { background: '#f0f0e8', color: '#bbb' },
-
   exportBtn: {
-    background: '#f5f5f0', border: '1px solid #e0dfd8',
-    color: '#555', padding: '11px',
-    fontSize: '13px', fontWeight: '600',
-    fontFamily: "'Cairo', sans-serif",
-    cursor: 'pointer', borderRadius: '10px',
-    textAlign: 'center',
+    background: '#f5f5f0', border: '1px solid #e0dfd8', color: '#555',
+    padding: '11px', fontSize: '13px', fontWeight: '600',
+    fontFamily: "'Cairo', sans-serif", cursor: 'pointer', borderRadius: '10px', textAlign: 'center',
   },
 };
+          
