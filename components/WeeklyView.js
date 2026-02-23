@@ -27,24 +27,20 @@ export default function WeeklyView() {
 
   async function load() {
     setLoading(true);
-    const tz = -new Date().getTimezoneOffset();
+    const tz = -new Date().getTimezoneOffset(); // e.g. 60 for UTC+1
     const { from, to } = weekRange();
 
     try {
-      const [statsRes, streakRes] = await Promise.all([
-        fetch(`/api/stats?from=${from}&to=${to}&tz=${tz}`),
+      const [entriesRes, streakRes] = await Promise.all([
+        fetch(`/api/entries?from=${from}&to=${to}&tz=${tz}`),
         fetch(`/api/streak?tz=${tz}`),
       ]);
 
-      const stats = await statsRes.json();
+      const rawEntries = await entriesRes.json();
       const streakData = await streakRes.json();
 
-      // log to confirm what we're getting
-      console.log('stats raw:', stats);
-      console.log('weekRange:', from, to);
-
       setStreak(streakData);
-      setWeekData(buildWeekData(from, to, Array.isArray(stats) ? stats : []));
+      setWeekData(buildWeekData(from, to, Array.isArray(rawEntries) ? rawEntries : [], tz));
       setSelectedDay(todayStr());
     } catch (err) {
       console.error('WeeklyView load error:', err);
@@ -60,7 +56,6 @@ export default function WeeklyView() {
 
   return (
     <div style={s.wrapper}>
-
       <div style={s.streakRow}>
         <div style={s.streakBox}>
           <span style={s.streakNum}>{streak?.streak ?? 0}</span>
@@ -83,17 +78,15 @@ export default function WeeklyView() {
           return (
             <div key={day.date} style={s.barCol} onClick={() => setSelectedDay(day.date)}>
               <div style={s.barTrack}>
-                <div
-                  style={{
-                    ...s.barFill,
-                    height: `${Math.max(pct, pct > 0 ? 3 : 0)}%`,
-                    background:
-                      pct >= 100 ? '#2d7a2d' :
-                      pct >= 50  ? '#5a9a40' :
-                      pct > 0    ? '#c8a030' : 'transparent',
-                    opacity: isSelected ? 1 : 0.65,
-                  }}
-                />
+                <div style={{
+                  ...s.barFill,
+                  height: `${Math.max(pct, pct > 0 ? 3 : 0)}%`,
+                  background:
+                    pct >= 100 ? '#2d7a2d' :
+                    pct >= 50  ? '#5a9a40' :
+                    pct > 0    ? '#c8a030' : 'transparent',
+                  opacity: isSelected ? 1 : 0.65,
+                }} />
                 {pct >= 100 && <div style={s.goalDot} />}
               </div>
               <span style={{
@@ -134,14 +127,12 @@ export default function WeeklyView() {
                       <span style={s.tagName}>{tag}</span>
                     </div>
                     <div style={s.tagBarWrap}>
-                      <div
-                        style={{
-                          ...s.tagBarFill,
-                          width: `${Math.round((min / maxMin) * 100)}%`,
-                          background: TAG_COLORS[tag] || '#999',
-                          opacity: 0.3,
-                        }}
-                      />
+                      <div style={{
+                        ...s.tagBarFill,
+                        width: `${Math.round((min / maxMin) * 100)}%`,
+                        background: TAG_COLORS[tag] || '#999',
+                        opacity: 0.3,
+                      }} />
                     </div>
                     <span style={s.tagMin}>{formatDur(min)}</span>
                   </div>
@@ -171,7 +162,7 @@ function BlockStatus({ entries }) {
 
   const done = BLOCK_WINDOWS.map((block) => {
     const covered = entries.reduce((acc, e) => {
-      const startMin = timeToMin(e.started_at);
+      const startMin = timeToLocalMin(e.started_at);
       const endMin = startMin + e.duration_minutes;
       const overlapStart = Math.max(startMin, block.start);
       const overlapEnd = Math.min(endMin, block.end);
@@ -212,18 +203,8 @@ function ExportButton({ weekData, streak }) {
   );
 }
 
-// THE FIX: normalize date keys consistently using UTC date string
-function normalizeDate(val) {
-  if (!val) return '';
-  // Postgres DATE comes back as a JS Date object at midnight UTC
-  // e.g. 2025-02-23T00:00:00.000Z → '2025-02-23'
-  if (val instanceof Date) return val.toISOString().slice(0, 10);
-  // If it's already a string like '2025-02-23' or '2025-02-23T00:00:00.000Z'
-  return String(val).slice(0, 10);
-}
-
-function buildWeekData(from, to, rows) {
-  // build all days in range
+// Group raw entries by local date (using browser's tz offset)
+function buildWeekData(from, to, entries, tzOffsetMinutes) {
   const days = [];
   const cursor = new Date(from + 'T12:00:00Z');
   const end = new Date(to + 'T12:00:00Z');
@@ -232,26 +213,35 @@ function buildWeekData(from, to, rows) {
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
-  // group by normalized date key
-  const map = {};
-  rows.forEach((r) => {
-    const d = normalizeDate(r.date);
-    if (!d) return;
-    if (!map[d]) map[d] = {};
-    map[d][r.tag] = r.total_minutes;
-  });
+  // Group entries by local date
+  const tagsByDate = {};
+  const studyEntriesByDate = {};
 
-  console.log('buildWeekData days:', days);
-  console.log('buildWeekData map keys:', Object.keys(map));
+  for (const entry of entries) {
+    const localDate = utcToLocalDate(entry.started_at, tzOffsetMinutes);
+    if (!tagsByDate[localDate]) tagsByDate[localDate] = {};
+    tagsByDate[localDate][entry.tag] = (tagsByDate[localDate][entry.tag] || 0) + entry.duration_minutes;
+
+    if (entry.tag === 'study') {
+      if (!studyEntriesByDate[localDate]) studyEntriesByDate[localDate] = [];
+      studyEntriesByDate[localDate].push(entry);
+    }
+  }
 
   return days.map((date) => ({
     date,
-    tags: map[date] || {},
-    studyEntries: [],
+    tags: tagsByDate[date] || {},
+    studyEntries: studyEntriesByDate[date] || [],
   }));
 }
 
-function timeToMin(isoString) {
+function utcToLocalDate(isoString, tzOffsetMinutes) {
+  const utcMs = new Date(isoString).getTime();
+  const localMs = utcMs + tzOffsetMinutes * 60000;
+  return new Date(localMs).toISOString().slice(0, 10);
+}
+
+function timeToLocalMin(isoString) {
   const d = new Date(isoString);
   const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
   return local.getUTCHours() * 60 + local.getUTCMinutes();
@@ -365,4 +355,3 @@ const s = {
     fontFamily: "'Cairo', sans-serif", cursor: 'pointer', borderRadius: '10px', textAlign: 'center',
   },
 };
-          
