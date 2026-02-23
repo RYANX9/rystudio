@@ -39,18 +39,23 @@ export default function Page() {
       .then((r) => r.json())
       .then((d) => setStreak(d))
       .catch(() => {});
-  }, [entries]); // refresh streak whenever entries change
+  }, [entries]);
 
-  function handleEntryAdded(entry) {
-    const entryDate = new Date(
-      new Date(entry.started_at).getTime() - new Date().getTimezoneOffset() * 60000
-    ).toISOString().slice(0, 10);
+  function handleEntryAdded(newEntries) {
+    // POST may return a single entry or array of two (midnight split)
+    const arr = Array.isArray(newEntries) ? newEntries : [newEntries];
 
-    if (entryDate === selectedDate) {
-      setEntries((prev) =>
-        [...prev, entry].sort((a, b) => new Date(a.started_at) - new Date(b.started_at))
+    setEntries((prev) => {
+      const filtered = arr.filter((entry) => {
+        const entryDate = new Date(
+          new Date(entry.started_at).getTime() - new Date().getTimezoneOffset() * 60000
+        ).toISOString().slice(0, 10);
+        return entryDate === selectedDate;
+      });
+      return [...prev, ...filtered].sort(
+        (a, b) => new Date(a.started_at) - new Date(b.started_at)
       );
-    }
+    });
   }
 
   async function handleDelete(id) {
