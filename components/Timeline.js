@@ -3,7 +3,7 @@
 
 const TAG_COLORS = {
   study:  { bg: '#e8f4e8', text: '#2d7a2d' },
-  Wasting:  { bg: '#E36A6A', text: '#db3f3f' },
+  Wasting:  { bg: '#f3bfbf', text: '#df5454' },
   prayer: { bg: '#e8eef8', text: '#2d4d99' },
   food:   { bg: '#fdf0e8', text: '#994d00' },
   other:  { bg: '#f0f0f0', text: '#555555' },
