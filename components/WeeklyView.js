@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 const GOAL = 360;
 
 const TAG_COLORS = {
-  study:  '#2d7a2d',
-  prayer: '#2d4d99',
-  food:   '#994d00',
-  break:  '#666633',
-  other:  '#999',
-  wasting:'f3bfbf',
+  study:   '#2d7a2d',
+  Wasting: '#df5454',
+  prayer:  '#2d4d99',
+  food:    '#994d00',
+  sleep:   '#907bd2',
+  other:   '#555555',
 };
 
 const BLOCK_WINDOWS = [
