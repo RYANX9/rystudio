@@ -9,6 +9,7 @@ const TAG_COLORS = {
   food:   '#994d00',
   break:  '#666633',
   other:  '#999',
+  wasting:'f3bfbf',
 };
 
 const BLOCK_WINDOWS = [
