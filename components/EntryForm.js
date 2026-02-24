@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 
-const TAGS = ['study', 'break', 'prayer', 'food', 'other'];
+const TAGS = ['study', 'Wasting', 'prayer', 'food', 'other'];
 
 export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
   const [activity, setActivity] = useState('');
