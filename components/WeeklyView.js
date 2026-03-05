@@ -1,15 +1,15 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-const GOAL = 360;
+const GOAL = 180;
 
 const TAG_COLORS = {
-  study:   '#2d7a2d',
-  Wasting: '#df5454',
-  prayer:  '#2d4d99',
-  food:    '#994d00',
-  sleep:   '#907bd2',
-  other:   '#555555',
+  study:   '#22c55e',
+  Wasting: '#ef4444',
+  prayer:  '#60a5fa',
+  food:    '#f97316',
+  sleep:   '#a78bfa',
+  other:   '#6b7280',
 };
 
 const BLOCK_WINDOWS = [
@@ -28,23 +28,19 @@ export default function WeeklyView() {
 
   async function load() {
     setLoading(true);
-    const tz = -new Date().getTimezoneOffset(); // e.g. 60 for UTC+1
+    const tz = -new Date().getTimezoneOffset();
     const { from, to } = weekRange();
-
     try {
       const [entriesRes, streakRes] = await Promise.all([
         fetch(`/api/entries?from=${from}&to=${to}&tz=${tz}`),
         fetch(`/api/streak?tz=${tz}`),
       ]);
-
       const rawEntries = await entriesRes.json();
       const streakData = await streakRes.json();
-
       setStreak(streakData);
       setWeekData(buildWeekData(from, to, Array.isArray(rawEntries) ? rawEntries : [], tz));
       setSelectedDay(todayStr());
-    } catch (err) {
-      console.error('WeeklyView load error:', err);
+    } catch (_) {
       setWeekData([]);
     } finally {
       setLoading(false);
@@ -55,20 +51,36 @@ export default function WeeklyView() {
 
   const selected = weekData.find((d) => d.date === selectedDay);
 
+  const weekStudyTotal = weekData.reduce((sum, d) => sum + (d.tags.study || 0), 0);
+  const weekGoalDays = weekData.filter((d) => (d.tags.study || 0) >= GOAL).length;
+
   return (
     <div style={s.wrapper}>
+
+      {/* streak row — now shows more */}
       <div style={s.streakRow}>
-        <div style={s.streakBox}>
-          <span style={s.streakNum}>{streak?.streak ?? 0}</span>
-          <span style={s.streakLabel}>day streak</span>
+        <div style={s.streakItem}>
+          <span style={{ ...s.streakNum, color: '#22c55e' }}>{streak?.streak ?? 0}</span>
+          <span style={s.streakLabel}>streak</span>
         </div>
-        <div style={s.streakNote}>
-          {streak?.streak === 0
-            ? 'hit 6h today to start a streak'
-            : `${streak?.streak} consecutive day${streak?.streak === 1 ? '' : 's'} at 6h+`}
+        <div style={s.streakDivider} />
+        <div style={s.streakItem}>
+          <span style={{ ...s.streakNum, color: '#f59e0b' }}>{streak?.longest_streak ?? 0}</span>
+          <span style={s.streakLabel}>best</span>
+        </div>
+        <div style={s.streakDivider} />
+        <div style={s.streakItem}>
+          <span style={s.streakNum}>{weekGoalDays}/7</span>
+          <span style={s.streakLabel}>goal days</span>
+        </div>
+        <div style={s.streakDivider} />
+        <div style={s.streakItem}>
+          <span style={{ ...s.streakNum, color: '#a78bfa' }}>{fmtDur(weekStudyTotal)}</span>
+          <span style={s.streakLabel}>this week</span>
         </div>
       </div>
 
+      {/* day bars */}
       <div style={s.barsWrap}>
         {weekData.map((day) => {
           const studyMin = day.tags.study || 0;
@@ -83,17 +95,17 @@ export default function WeeklyView() {
                   ...s.barFill,
                   height: `${Math.max(pct, pct > 0 ? 3 : 0)}%`,
                   background:
-                    pct >= 100 ? '#2d7a2d' :
-                    pct >= 50  ? '#5a9a40' :
-                    pct > 0    ? '#c8a030' : 'transparent',
-                  opacity: isSelected ? 1 : 0.65,
+                    pct >= 100 ? '#22c55e' :
+                    pct >= 50  ? '#84cc16' :
+                    pct > 0    ? '#f59e0b' : 'transparent',
+                  opacity: isSelected ? 1 : 0.5,
                 }} />
                 {pct >= 100 && <div style={s.goalDot} />}
               </div>
               <span style={{
                 ...s.barDay,
                 fontWeight: isToday ? '700' : '500',
-                color: isSelected ? '#1a1a1a' : '#aaa',
+                color: isSelected ? '#e8e8e0' : '#444',
               }}>
                 {dayLabel(day.date)}
               </span>
@@ -108,8 +120,22 @@ export default function WeeklyView() {
             <span style={s.detailDate}>
               {selected.date === todayStr() ? 'today' : formatDate(selected.date)}
             </span>
-            <span style={s.detailStudy}>
-              {formatDur(selected.tags.study || 0)} studied
+            <span style={{ ...s.detailStudy, color: (selected.tags.study || 0) >= GOAL ? '#22c55e' : '#888' }}>
+              {fmtDur(selected.tags.study || 0)} studied
+            </span>
+          </div>
+
+          {/* study progress bar */}
+          <div style={s.dayProgressWrap}>
+            <div style={s.dayProgressTrack}>
+              <div style={{
+                ...s.dayProgressFill,
+                width: `${Math.min(100, Math.round(((selected.tags.study || 0) / GOAL) * 100))}%`,
+                background: (selected.tags.study || 0) >= GOAL ? '#22c55e' : '#f59e0b',
+              }} />
+            </div>
+            <span style={s.dayProgressLabel}>
+              {Math.min(100, Math.round(((selected.tags.study || 0) / GOAL) * 100))}% of 3h goal
             </span>
           </div>
 
@@ -124,18 +150,18 @@ export default function WeeklyView() {
                 return (
                   <div key={tag} style={s.tagRow}>
                     <div style={s.tagRowLeft}>
-                      <div style={{ ...s.tagDot, background: TAG_COLORS[tag] || '#999' }} />
+                      <div style={{ ...s.tagDot, background: TAG_COLORS[tag] || '#555' }} />
                       <span style={s.tagName}>{tag}</span>
                     </div>
                     <div style={s.tagBarWrap}>
                       <div style={{
                         ...s.tagBarFill,
                         width: `${Math.round((min / maxMin) * 100)}%`,
-                        background: TAG_COLORS[tag] || '#999',
-                        opacity: 0.3,
+                        background: TAG_COLORS[tag] || '#555',
+                        opacity: 0.4,
                       }} />
                     </div>
-                    <span style={s.tagMin}>{formatDur(min)}</span>
+                    <span style={s.tagMin}>{fmtDur(min)}</span>
                   </div>
                 );
               })}
@@ -151,17 +177,8 @@ export default function WeeklyView() {
 }
 
 function BlockStatus({ entries }) {
-  if (!entries || entries.length === 0) {
-    return (
-      <div style={s.blocks}>
-        {BLOCK_WINDOWS.map((b) => (
-          <div key={b.label} style={{ ...s.blockPill, ...s.blockMiss }}>{b.label}</div>
-        ))}
-      </div>
-    );
-  }
-
   const done = BLOCK_WINDOWS.map((block) => {
+    if (!entries?.length) return false;
     const covered = entries.reduce((acc, e) => {
       const startMin = timeToLocalMin(e.started_at);
       const endMin = startMin + e.duration_minutes;
@@ -185,15 +202,22 @@ function BlockStatus({ entries }) {
 
 function ExportButton({ weekData, streak }) {
   function generate() {
-    const lines = [`Week summary — streak: ${streak?.streak ?? 0} days`, ''];
+    const lines = [
+      `Chronicle — week summary`,
+      `streak: ${streak?.streak ?? 0}d | best: ${streak?.longest_streak ?? 0}d`,
+      '',
+    ];
     weekData.forEach((day) => {
       const label = day.date === todayStr() ? 'today' : formatDate(day.date);
-      const study = formatDur(day.tags.study || 0);
-      const other = day.tags.other ? ` | other: ${formatDur(day.tags.other)}` : '';
-      lines.push(`${label}: ${study} study${other}`);
+      const study = fmtDur(day.tags.study || 0);
+      const parts = Object.entries(day.tags)
+        .filter(([t]) => t !== 'study')
+        .map(([t, m]) => `${t}:${fmtDur(m)}`).join(' ');
+      lines.push(`${label}: ${study} study  ${parts}`);
     });
     lines.push('');
-    lines.push(`total study: ${formatDur(weekData.reduce((sum, d) => sum + (d.tags.study || 0), 0))}`);
+    const total = weekData.reduce((s, d) => s + (d.tags.study || 0), 0);
+    lines.push(`week study total: ${fmtDur(total)}`);
     return lines.join('\n');
   }
 
@@ -204,7 +228,6 @@ function ExportButton({ weekData, streak }) {
   );
 }
 
-// Group raw entries by local date (using browser's tz offset)
 function buildWeekData(from, to, entries, tzOffsetMinutes) {
   const days = [];
   const cursor = new Date(from + 'T12:00:00Z');
@@ -214,15 +237,12 @@ function buildWeekData(from, to, entries, tzOffsetMinutes) {
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
-  // Group entries by local date
   const tagsByDate = {};
   const studyEntriesByDate = {};
-
   for (const entry of entries) {
     const localDate = utcToLocalDate(entry.started_at, tzOffsetMinutes);
     if (!tagsByDate[localDate]) tagsByDate[localDate] = {};
     tagsByDate[localDate][entry.tag] = (tagsByDate[localDate][entry.tag] || 0) + entry.duration_minutes;
-
     if (entry.tag === 'study') {
       if (!studyEntriesByDate[localDate]) studyEntriesByDate[localDate] = [];
       studyEntriesByDate[localDate].push(entry);
@@ -237,9 +257,8 @@ function buildWeekData(from, to, entries, tzOffsetMinutes) {
 }
 
 function utcToLocalDate(isoString, tzOffsetMinutes) {
-  const utcMs = new Date(isoString).getTime();
-  const localMs = utcMs + tzOffsetMinutes * 60000;
-  return new Date(localMs).toISOString().slice(0, 10);
+  return new Date(new Date(isoString).getTime() + tzOffsetMinutes * 60000)
+    .toISOString().slice(0, 10);
 }
 
 function timeToLocalMin(isoString) {
@@ -250,8 +269,7 @@ function timeToLocalMin(isoString) {
 
 function todayStr() {
   const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-    .toISOString().slice(0, 10);
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
 function weekRange() {
@@ -261,16 +279,11 @@ function weekRange() {
   monday.setUTCDate(today.getUTCDate() - ((day + 6) % 7));
   const sunday = new Date(monday);
   sunday.setUTCDate(monday.getUTCDate() + 6);
-  return {
-    from: monday.toISOString().slice(0, 10),
-    to:   sunday.toISOString().slice(0, 10),
-  };
+  return { from: monday.toISOString().slice(0, 10), to: sunday.toISOString().slice(0, 10) };
 }
 
 function dayLabel(dateStr) {
-  return new Date(dateStr + 'T12:00:00Z')
-    .toLocaleDateString([], { weekday: 'short' })
-    .slice(0, 2);
+  return new Date(dateStr + 'T12:00:00Z').toLocaleDateString([], { weekday: 'short' }).slice(0, 2);
 }
 
 function formatDate(str) {
@@ -279,9 +292,10 @@ function formatDate(str) {
   });
 }
 
-function formatDur(minutes) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
+function fmtDur(min) {
+  if (!min) return '0m';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
   if (h === 0) return `${m}m`;
   if (m === 0) return `${h}h`;
   return `${h}h ${m}m`;
@@ -289,69 +303,74 @@ function formatDur(minutes) {
 
 const s = {
   wrapper: { display: 'flex', flexDirection: 'column', gap: '14px' },
-  loading: { fontSize: '13px', color: '#aaa', textAlign: 'center', padding: '32px 0' },
+  loading: { fontSize: '13px', color: '#555', textAlign: 'center', padding: '32px 0' },
   streakRow: {
-    display: 'flex', alignItems: 'center', gap: '14px',
-    padding: '14px 16px', background: '#fff',
-    border: '1px solid #e0dfd8', borderRadius: '10px',
+    display: 'flex', alignItems: 'center',
+    background: '#111', border: '1px solid #1e1e1a', borderRadius: '10px', overflow: 'hidden',
   },
-  streakBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '48px' },
-  streakNum: { fontSize: '28px', fontWeight: '700', color: '#1a1a1a', lineHeight: 1 },
-  streakLabel: { fontSize: '10px', color: '#aaa', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.06em' },
-  streakNote: { fontSize: '13px', color: '#666', lineHeight: 1.4 },
+  streakItem: {
+    flex: 1, display: 'flex', flexDirection: 'column',
+    alignItems: 'center', padding: '12px 4px', gap: '2px',
+  },
+  streakNum: { fontSize: '18px', fontWeight: '700', color: '#e8e8e0', lineHeight: 1 },
+  streakLabel: { fontSize: '9px', color: '#444', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.06em' },
+  streakDivider: { width: '1px', background: '#1e1e1a', height: '40px' },
   barsWrap: {
-    display: 'flex', gap: '6px', alignItems: 'flex-end',
-    padding: '14px 16px', background: '#fff',
-    border: '1px solid #e0dfd8', borderRadius: '10px',
-    height: '110px',
+    display: 'flex', gap: '5px', alignItems: 'flex-end',
+    padding: '12px 14px', background: '#111',
+    border: '1px solid #1e1e1a', borderRadius: '10px', height: '100px',
   },
   barCol: {
     flex: 1, display: 'flex', flexDirection: 'column',
     alignItems: 'center', gap: '5px', height: '100%', cursor: 'pointer',
   },
   barTrack: {
-    flex: 1, width: '100%', background: '#f0f0e8',
-    borderRadius: '4px', overflow: 'hidden', position: 'relative',
+    flex: 1, width: '100%', background: '#1a1a16',
+    borderRadius: '3px', overflow: 'hidden', position: 'relative',
     display: 'flex', alignItems: 'flex-end',
   },
-  barFill: { width: '100%', borderRadius: '4px', transition: 'height 0.4s ease' },
+  barFill: { width: '100%', borderRadius: '3px', transition: 'height 0.4s ease' },
   goalDot: {
-    position: 'absolute', top: '4px', left: '50%', transform: 'translateX(-50%)',
-    width: '5px', height: '5px', borderRadius: '50%', background: '#2d7a2d',
+    position: 'absolute', top: '3px', left: '50%', transform: 'translateX(-50%)',
+    width: '4px', height: '4px', borderRadius: '50%', background: '#22c55e',
   },
-  barDay: { fontSize: '11px', letterSpacing: '0.02em' },
+  barDay: { fontSize: '10px', letterSpacing: '0.02em' },
   detail: {
     display: 'flex', flexDirection: 'column', gap: '10px',
-    padding: '14px 16px', background: '#fff',
-    border: '1px solid #e0dfd8', borderRadius: '10px',
+    padding: '14px', background: '#111',
+    border: '1px solid #1e1e1a', borderRadius: '10px',
   },
   detailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
-  detailDate: { fontSize: '14px', fontWeight: '700', color: '#1a1a1a' },
-  detailStudy: { fontSize: '13px', color: '#2d7a2d', fontWeight: '600' },
+  detailDate: { fontSize: '14px', fontWeight: '700', color: '#e8e8e0' },
+  detailStudy: { fontSize: '13px', fontWeight: '600' },
+  dayProgressWrap: { display: 'flex', flexDirection: 'column', gap: '3px' },
+  dayProgressTrack: { height: '3px', background: '#1a1a16', borderRadius: '2px', overflow: 'hidden' },
+  dayProgressFill: { height: '100%', borderRadius: '2px', transition: 'width 0.4s ease' },
+  dayProgressLabel: { fontSize: '10px', color: '#444', fontWeight: '600' },
   tagBreakdown: { display: 'flex', flexDirection: 'column', gap: '6px' },
   tagRow: { display: 'flex', alignItems: 'center', gap: '8px' },
   tagRowLeft: { display: 'flex', alignItems: 'center', gap: '6px', minWidth: '70px' },
-  tagDot: { width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0 },
-  tagName: { fontSize: '12px', color: '#555', fontWeight: '600' },
+  tagDot: { width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0 },
+  tagName: { fontSize: '12px', color: '#666', fontWeight: '600' },
   tagBarWrap: {
-    flex: 1, height: '8px', background: '#f0f0e8',
-    borderRadius: '4px', overflow: 'hidden', position: 'relative',
+    flex: 1, height: '7px', background: '#1a1a16',
+    borderRadius: '3px', overflow: 'hidden', position: 'relative',
   },
   tagBarFill: {
     position: 'absolute', top: 0, left: 0,
-    height: '100%', borderRadius: '4px', transition: 'width 0.4s ease',
+    height: '100%', borderRadius: '3px', transition: 'width 0.4s ease',
   },
-  tagMin: { fontSize: '11px', color: '#888', fontWeight: '600', minWidth: '36px', textAlign: 'right' },
-  noData: { fontSize: '12px', color: '#bbb', padding: '4px 0' },
-  blocks: { display: 'flex', gap: '8px' },
+  tagMin: { fontSize: '11px', color: '#666', fontWeight: '600', minWidth: '36px', textAlign: 'right' },
+  noData: { fontSize: '12px', color: '#444', padding: '4px 0' },
+  blocks: { display: 'flex', gap: '6px' },
   blockPill: {
-    flex: 1, textAlign: 'center', padding: '6px 0',
-    fontSize: '12px', fontWeight: '700', borderRadius: '6px',
+    flex: 1, textAlign: 'center', padding: '5px 0',
+    fontSize: '11px', fontWeight: '700', borderRadius: '5px',
   },
-  blockDone: { background: '#e8f4e8', color: '#2d7a2d' },
-  blockMiss: { background: '#f0f0e8', color: '#bbb' },
+  blockDone: { background: '#052e16', color: '#22c55e', border: '1px solid #166534' },
+  blockMiss: { background: '#1a1a16', color: '#333', border: '1px solid #222' },
   exportBtn: {
-    background: '#f5f5f0', border: '1px solid #e0dfd8', color: '#555',
+    background: '#111', border: '1px solid #1e1e1a', color: '#555',
     padding: '11px', fontSize: '13px', fontWeight: '600',
     fontFamily: "'Cairo', sans-serif", cursor: 'pointer', borderRadius: '10px', textAlign: 'center',
   },
