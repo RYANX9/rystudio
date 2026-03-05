@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
 
-const TAGS = ['study', 'Wasting', 'prayer', 'food','sleep', 'other'];
+const TAGS = ['study', 'Wasting', 'prayer', 'food', 'sleep', 'other'];
 
-export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
+export default function EntryForm({ onEntryAdded, onOfflineQueue, isOffline, lastEntryEnd }) {
   const [activity, setActivity] = useState('');
   const [tag, setTag] = useState('study');
   const [mode, setMode] = useState('now');
@@ -13,6 +13,7 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
   const [error, setError] = useState('');
 
   const base = lastEntryEnd || new Date().toISOString();
+  const tz = -new Date().getTimezoneOffset();
 
   const resolvedStart = mode === 'manual'
     ? (startedAt ? new Date(startedAt).toISOString() : new Date().toISOString())
@@ -31,6 +32,22 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
     if (!activity.trim()) return;
     if (mode !== 'now' && !duration) return;
 
+    const payload = {
+      activity: activity.trim(),
+      tag,
+      started_at: resolvedStart,
+      duration_minutes: resolvedDuration,
+      tz,
+    };
+
+    if (isOffline) {
+      onOfflineQueue?.(payload);
+      setActivity('');
+      setDuration('');
+      setError('queued — will sync when back online');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -38,16 +55,9 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
       const res = await fetch('/api/entries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          activity: activity.trim(),
-          tag,
-          started_at: resolvedStart,
-          duration_minutes: resolvedDuration,
-        }),
+        body: JSON.stringify(payload),
       });
-
       if (!res.ok) throw new Error((await res.json()).error);
-
       const entry = await res.json();
       onEntryAdded(entry);
       setActivity('');
@@ -92,7 +102,7 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
       </div>
 
       <div style={styles.hint}>
-        {mode === 'now' && 'duration calculated from last entry until now'}
+        {mode === 'now' && 'duration from last entry until now'}
         {mode === 'auto' && 'starts from last entry end — you set duration'}
         {mode === 'manual' && 'set both start time and duration manually'}
       </div>
@@ -130,7 +140,7 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
       {error && <div style={styles.error}>{error}</div>}
 
       <button type="submit" style={styles.submit} disabled={loading}>
-        {loading ? '...' : 'log entry'}
+        {loading ? '...' : isOffline ? 'queue entry' : 'log entry'}
       </button>
     </form>
   );
@@ -142,93 +152,37 @@ function formatTime(date) {
 
 const styles = {
   form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    padding: '16px',
-    background: '#fff',
-    border: '1px solid #e0dfd8',
-    borderRadius: '10px',
+    display: 'flex', flexDirection: 'column', gap: '10px',
+    padding: '14px', background: '#111', border: '1px solid #1e1e1a', borderRadius: '10px',
   },
-  row: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
+  row: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' },
   input: {
-    flex: 1,
-    background: '#f5f5f0',
-    border: '1px solid #ddddd5',
-    color: '#1a1a1a',
-    padding: '10px 12px',
-    fontSize: '14px',
-    fontFamily: "'Cairo', sans-serif",
-    outline: 'none',
-    borderRadius: '8px',
-    minWidth: '80px',
+    flex: 1, background: '#0f0f0d', border: '1px solid #222', color: '#e8e8e0',
+    padding: '10px 12px', fontSize: '14px', fontFamily: "'Cairo', sans-serif",
+    outline: 'none', borderRadius: '8px', minWidth: '80px',
   },
   select: {
-    background: '#f5f5f0',
-    border: '1px solid #ddddd5',
-    color: '#555',
-    padding: '10px 10px',
-    fontSize: '13px',
-    fontFamily: "'Cairo', sans-serif",
-    outline: 'none',
-    borderRadius: '8px',
+    background: '#0f0f0d', border: '1px solid #222', color: '#888',
+    padding: '10px 10px', fontSize: '13px', fontFamily: "'Cairo', sans-serif",
+    outline: 'none', borderRadius: '8px',
   },
-  modeRow: {
-    display: 'flex',
-    gap: '6px',
-  },
+  modeRow: { display: 'flex', gap: '6px' },
   modeBtn: {
-    flex: 1,
-    background: '#f5f5f0',
-    border: '1px solid #ddddd5',
-    color: '#888',
-    padding: '8px 6px',
-    fontSize: '12px',
-    fontFamily: "'Cairo', sans-serif",
-    fontWeight: '600',
-    cursor: 'pointer',
-    borderRadius: '8px',
+    flex: 1, background: '#0f0f0d', border: '1px solid #222', color: '#555',
+    padding: '8px 6px', fontSize: '12px', fontFamily: "'Cairo', sans-serif",
+    fontWeight: '600', cursor: 'pointer', borderRadius: '8px',
   },
-  modeBtnActive: {
-    background: '#1a1a1a',
-    borderColor: '#1a1a1a',
-    color: '#fff',
-  },
-  hint: {
-    fontSize: '11px',
-    color: '#aaa',
-    lineHeight: 1.4,
-  },
+  modeBtnActive: { background: '#1e1e1a', borderColor: '#333', color: '#e8e8e0' },
+  hint: { fontSize: '11px', color: '#444', lineHeight: 1.4 },
   preview: {
-    fontSize: '13px',
-    color: '#555',
-    fontWeight: '600',
-    background: '#f5f5f0',
-    padding: '8px 12px',
-    borderRadius: '6px',
+    fontSize: '13px', color: '#888', fontWeight: '600',
+    background: '#0f0f0d', padding: '8px 12px', borderRadius: '6px',
   },
-  previewNote: {
-    color: '#aaa',
-    fontWeight: '400',
-  },
-  error: {
-    fontSize: '12px',
-    color: '#c0392b',
-  },
+  previewNote: { color: '#555', fontWeight: '400' },
+  error: { fontSize: '12px', color: '#ef4444' },
   submit: {
-    background: '#1a1a1a',
-    color: '#fff',
-    border: 'none',
-    padding: '12px',
-    fontSize: '14px',
-    fontFamily: "'Cairo', sans-serif",
-    fontWeight: '700',
-    cursor: 'pointer',
-    borderRadius: '8px',
+    background: '#e8e8e0', color: '#0f0f0d', border: 'none', padding: '12px',
+    fontSize: '14px', fontFamily: "'Cairo', sans-serif", fontWeight: '700',
+    cursor: 'pointer', borderRadius: '8px',
   },
 };
