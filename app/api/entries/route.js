@@ -6,18 +6,16 @@ export async function GET(request) {
   const date = searchParams.get('date');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
-  const tz = parseInt(searchParams.get('tz') || '0', 10); // offset in minutes, e.g. 60 for UTC+1
+  const tz = parseInt(searchParams.get('tz') || '0', 10);
 
   try {
     let entries;
 
     if (from && to) {
-      // Fetch all entries whose UTC timestamp falls within a generous window.
-      // We add/subtract one day buffer so JS can do exact local-date assignment.
       const fromUTC = new Date(from + 'T00:00:00Z');
-      fromUTC.setUTCMinutes(fromUTC.getUTCMinutes() - tz); // shift back by tz to catch local day start
+      fromUTC.setUTCMinutes(fromUTC.getUTCMinutes() - tz);
       const toUTC = new Date(to + 'T23:59:59Z');
-      toUTC.setUTCMinutes(toUTC.getUTCMinutes() - tz + 1439); // shift forward
+      toUTC.setUTCMinutes(toUTC.getUTCMinutes() - tz + 1439);
 
       entries = await sql`
         SELECT * FROM entries
@@ -26,7 +24,6 @@ export async function GET(request) {
         ORDER BY started_at ASC
       `;
     } else if (date) {
-      // Convert local date boundaries to UTC for the query
       const dayStartLocal = new Date(date + 'T00:00:00Z');
       dayStartLocal.setUTCMinutes(dayStartLocal.getUTCMinutes() - tz);
       const dayEndLocal = new Date(date + 'T23:59:59Z');
@@ -54,7 +51,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { activity, tag, started_at, duration_minutes } = await request.json();
+    const { activity, tag, started_at, duration_minutes, tz: bodyTz } = await request.json();
 
     if (!activity || !started_at || !duration_minutes) {
       return NextResponse.json(
@@ -63,19 +60,20 @@ export async function POST(request) {
       );
     }
 
+    // Use tz from body if provided, fallback to 60 (Algeria UTC+1)
+    const tzOffsetMinutes = typeof bodyTz === 'number' ? bodyTz : 60;
+    const tzOffsetMs = tzOffsetMinutes * 60000;
+
     const start = new Date(started_at);
     const end = new Date(start.getTime() + duration_minutes * 60000);
 
-    const startUTCDay = Math.floor(start.getTime() / 86400000);
-    const endUTCDay = Math.floor(end.getTime() / 86400000);
-    const crossesMidnight = endUTCDay > startUTCDay;
+    const localStart = start.getTime() + tzOffsetMs;
+    const localEnd = end.getTime() + tzOffsetMs;
+    const localStartDay = Math.floor(localStart / 86400000);
+    const localEndDay = Math.floor(localEnd / 86400000);
 
-    if (crossesMidnight) {
-      const tzOffsetMs = 60 * 60000; // UTC+1 for Algeria
-      const localStart = start.getTime() + tzOffsetMs;
-      const localStartDay = Math.floor(localStart / 86400000);
+    if (localEndDay > localStartDay) {
       const nextLocalMidnightUTC = (localStartDay + 1) * 86400000 - tzOffsetMs;
-
       const firstDuration = Math.round((nextLocalMidnightUTC - start.getTime()) / 60000);
       const secondDuration = duration_minutes - firstDuration;
 
