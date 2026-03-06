@@ -1,110 +1,109 @@
 'use client';
 import { useState } from 'react';
 
-const TAGS = ['study', 'Wasting', 'prayer', 'food', 'sleep', 'other'];
+const TAGS = [
+  { key: 'study',   label: 'Study',   c: 'var(--study-c)',  bg: 'var(--study-bg)',  dot: 'var(--study-dot)'  },
+  { key: 'Wasting', label: 'Wasting', c: 'var(--waste-c)',  bg: 'var(--waste-bg)',  dot: 'var(--waste-dot)'  },
+  { key: 'prayer',  label: 'Prayer',  c: 'var(--pray-c)',   bg: 'var(--pray-bg)',   dot: 'var(--pray-dot)'   },
+  { key: 'food',    label: 'Food',    c: 'var(--food-c)',   bg: 'var(--food-bg)',   dot: 'var(--food-dot)'   },
+  { key: 'sleep',   label: 'Sleep',   c: 'var(--sleep-c)',  bg: 'var(--sleep-bg)',  dot: 'var(--sleep-dot)'  },
+  { key: 'other',   label: 'Other',   c: 'var(--other-c)',  bg: 'var(--other-bg)',  dot: 'var(--other-dot)'  },
+];
 
-const TAG_STYLE = {
-  study:   { bg: 'var(--accent2-bg)', color: 'var(--accent2)', dot: '#2D7A4F' },
-  Wasting: { bg: '#FEF2F2',           color: '#DC2626',         dot: '#DC2626' },
-  prayer:  { bg: '#EFF6FF',           color: '#2563EB',         dot: '#2563EB' },
-  food:    { bg: '#FFF7ED',           color: '#C2410C',         dot: '#EA580C' },
-  sleep:   { bg: '#F5F3FF',           color: '#7C3AED',         dot: '#7C3AED' },
-  other:   { bg: 'var(--surface2)',   color: 'var(--ink2)',     dot: '#9CA3AF' },
-};
+const MODES = [
+  { key: 'now',    label: 'From last entry → now' },
+  { key: 'dur',    label: 'Set duration' },
+  { key: 'manual', label: 'Manual time' },
+];
+
+const fmt = d => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
   const [activity, setActivity] = useState('');
-  const [tag, setTag] = useState('study');
-  const [mode, setMode] = useState('now');
+  const [tag, setTag]           = useState('study');
+  const [mode, setMode]         = useState('now');
   const [duration, setDuration] = useState('');
   const [startedAt, setStartedAt] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [err, setErr]           = useState('');
 
-  const tz = -new Date().getTimezoneOffset();
-  const base = lastEntryEnd || new Date().toISOString();
+  const tz   = -new Date().getTimezoneOffset();
+  const base  = lastEntryEnd || new Date().toISOString();
 
-  const resolvedStart = mode === 'manual'
-    ? (startedAt ? new Date(startedAt).toISOString() : new Date().toISOString())
+  const resolvedStart = mode === 'manual' && startedAt
+    ? new Date(startedAt).toISOString()
     : base;
 
-  const resolvedDuration = mode === 'now'
+  const resolvedDur = mode === 'now'
     ? Math.max(1, Math.round((Date.now() - new Date(base).getTime()) / 60000))
     : parseInt(duration) || 0;
 
-  const endTime = resolvedDuration
-    ? new Date(new Date(resolvedStart).getTime() + resolvedDuration * 60000)
+  const endTime = resolvedDur
+    ? new Date(new Date(resolvedStart).getTime() + resolvedDur * 60000)
     : null;
 
-  async function handleSubmit(e) {
+  const activeTag = TAGS.find(t => t.key === tag) || TAGS[0];
+
+  async function submit(e) {
     e.preventDefault();
     if (!activity.trim() || (mode !== 'now' && !duration)) return;
-    setLoading(true);
-    setError('');
+    setLoading(true); setErr('');
     try {
       const res = await fetch('/api/entries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          activity: activity.trim(), tag,
-          started_at: resolvedStart,
-          duration_minutes: resolvedDuration,
-          tz,
-        }),
+        body: JSON.stringify({ activity: activity.trim(), tag, started_at: resolvedStart, duration_minutes: resolvedDur, tz }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       const entry = await res.json();
       onEntryAdded(entry);
       setActivity(''); setDuration('');
-    } catch (err) { setError(err.message); }
+    } catch (e) { setErr(e.message); }
     finally { setLoading(false); }
   }
 
-  const ts = TAG_STYLE[tag];
-
   return (
-    <form onSubmit={handleSubmit} style={s.form}>
-      {/* Activity input */}
-      <div style={s.inputRow}>
-        <input
-          style={s.input}
-          placeholder="What did you do?"
-          value={activity}
-          onChange={e => setActivity(e.target.value)}
-          required
-        />
-      </div>
+    <form onSubmit={submit} style={s.card}>
+      {/* activity field */}
+      <input
+        style={s.activityInput}
+        placeholder="What did you do?"
+        value={activity}
+        onChange={e => setActivity(e.target.value)}
+        required
+      />
 
-      {/* Tag chips */}
+      {/* tag selector */}
       <div style={s.tagRow}>
-        {TAGS.map(t => {
-          const ts2 = TAG_STYLE[t];
-          const active = tag === t;
-          return (
-            <button
-              key={t} type="button"
-              style={{
-                ...s.tagChip,
-                background: active ? ts2.bg : 'var(--surface2)',
-                color: active ? ts2.color : 'var(--ink3)',
-                border: `1px solid ${active ? ts2.dot + '40' : 'var(--border)'}`,
-                fontWeight: active ? 600 : 400,
-              }}
-              onClick={() => setTag(t)}
-            >
-              <span style={{ ...s.tagDot, background: active ? ts2.dot : 'var(--ink3)', opacity: active ? 1 : 0.4 }} />
-              {t}
-            </button>
-          );
-        })}
+        {TAGS.map(t => (
+          <button
+            key={t.key} type="button"
+            style={{
+              ...s.tagChip,
+              background: tag === t.key ? t.bg : 'transparent',
+              color: tag === t.key ? t.c : 'var(--ink3)',
+              border: `1.5px solid ${tag === t.key ? t.c + '55' : 'var(--ink4)'}`,
+              fontWeight: tag === t.key ? 600 : 400,
+            }}
+            onClick={() => setTag(t.key)}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: tag === t.key ? t.dot : 'var(--ink4)', display: 'inline-block', flexShrink: 0 }} />
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Mode selector */}
+      {/* mode tabs */}
       <div style={s.modeRow}>
-        {[{ key: 'now', label: 'Log now' }, { key: 'auto', label: 'Set duration' }, { key: 'manual', label: 'Manual' }].map(m => (
+        {MODES.map(m => (
           <button
             key={m.key} type="button"
-            style={{ ...s.modeBtn, ...(mode === m.key ? s.modeBtnActive : {}) }}
+            style={{
+              ...s.modeChip,
+              background: mode === m.key ? 'var(--dark)' : 'var(--surface2)',
+              color: mode === m.key ? '#fff' : 'var(--ink3)',
+              border: `1px solid ${mode === m.key ? 'var(--dark)' : 'var(--ink4)'}`,
+            }}
             onClick={() => setMode(m.key)}
           >
             {m.label}
@@ -112,113 +111,119 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
         ))}
       </div>
 
-      <div style={s.hint}>
-        {mode === 'now' && `Duration from last entry until now`}
-        {mode === 'auto' && 'Starts from last entry end — you set duration'}
-        {mode === 'manual' && 'Set both start time and duration'}
-      </div>
-
+      {/* extra fields */}
       {mode !== 'now' && (
-        <div style={s.inputRow}>
+        <div style={s.extraRow}>
           <input
-            style={{ ...s.input, maxWidth: 130 }}
-            type="number" placeholder="Duration (min)"
+            style={s.numInput}
+            type="number" placeholder="min"
             value={duration} onChange={e => setDuration(e.target.value)}
             min="1" required
           />
           {mode === 'manual' && (
             <input
-              style={s.input} type="datetime-local"
+              style={s.dtInput}
+              type="datetime-local"
               value={startedAt} onChange={e => setStartedAt(e.target.value)} required
             />
           )}
         </div>
       )}
 
+      {/* time preview */}
       {endTime && (
-        <div style={{ ...s.preview, background: ts.bg, borderColor: ts.dot + '30' }}>
-          <span style={{ color: ts.color, fontFamily: "'DM Mono', monospace", fontSize: 12, fontWeight: 500 }}>
+        <div style={{ ...s.preview, background: activeTag.bg }}>
+          <span style={{ fontSize: 12, fontFamily: "'DM Mono',monospace", color: activeTag.c, fontWeight: 500 }}>
             {fmt(new Date(resolvedStart))} → {fmt(endTime)}
           </span>
-          <span style={{ color: 'var(--ink3)', fontSize: 11 }}>{resolvedDuration} min</span>
+          <span style={{ fontSize: 11, color: 'var(--ink3)' }}>{resolvedDur} min</span>
         </div>
       )}
 
-      {error && <div style={s.error}>{error}</div>}
+      {err && <div style={s.err}>{err}</div>}
 
-      <button type="submit" style={s.submit} disabled={loading}>
-        {loading ? 'Saving...' : 'Log entry'}
+      <button type="submit" style={s.cta} disabled={loading}>
+        {loading ? 'Saving…' : 'Log entry'}
       </button>
     </form>
   );
 }
 
-const fmt = d => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
 const s = {
-  form: {
+  card: {
     background: 'var(--surface)',
-    borderRadius: 'var(--radius)',
-    padding: 16,
-    display: 'flex', flexDirection: 'column', gap: 10,
-    boxShadow: 'var(--shadow)',
+    borderRadius: 'var(--r)',
+    padding: 20,
+    display: 'flex', flexDirection: 'column', gap: 14,
+    boxShadow: 'var(--sh)',
   },
-  inputRow: { display: 'flex', gap: 8, alignItems: 'center' },
-  input: {
-    flex: 1,
+  activityInput: {
     background: 'var(--surface2)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-sm)',
+    border: '1.5px solid var(--ink4)',
+    borderRadius: 'var(--r-sm)',
     color: 'var(--ink)',
-    padding: '10px 13px',
-    fontSize: 14,
-    minWidth: 0,
+    padding: '13px 16px',
+    fontSize: 16,
+    fontWeight: 500,
+    width: '100%',
+    letterSpacing: '-0.01em',
     transition: 'border-color 0.15s',
   },
-  tagRow: { display: 'flex', gap: 6, flexWrap: 'wrap' },
+  tagRow: {
+    display: 'flex', gap: 7, flexWrap: 'wrap',
+  },
   tagChip: {
     display: 'flex', alignItems: 'center', gap: 5,
-    padding: '5px 10px',
-    borderRadius: 100,
-    fontSize: 12,
-    border: '1px solid',
+    padding: '6px 12px',
+    borderRadius: 'var(--r-pill)',
+    fontSize: 12, fontWeight: 500,
     transition: 'all 0.15s',
     whiteSpace: 'nowrap',
   },
-  tagDot: { width: 6, height: 6, borderRadius: '50%', flexShrink: 0 },
-  modeRow: { display: 'flex', gap: 6 },
-  modeBtn: {
-    flex: 1,
-    background: 'var(--surface2)',
-    border: '1px solid var(--border)',
-    color: 'var(--ink3)',
-    borderRadius: 'var(--radius-sm)',
-    padding: '7px 4px',
-    fontSize: 12,
-    fontWeight: 500,
+  modeRow: {
+    display: 'flex', flexDirection: 'column', gap: 6,
+  },
+  modeChip: {
+    padding: '10px 14px',
+    borderRadius: 'var(--r-sm)',
+    fontSize: 13,
+    textAlign: 'left',
     transition: 'all 0.15s',
   },
-  modeBtnActive: {
-    background: 'var(--ink)',
-    borderColor: 'var(--ink)',
-    color: 'var(--surface)',
-    fontWeight: 600,
+  extraRow: { display: 'flex', gap: 10 },
+  numInput: {
+    background: 'var(--surface2)',
+    border: '1.5px solid var(--ink4)',
+    borderRadius: 'var(--r-sm)',
+    color: 'var(--ink)',
+    padding: '11px 14px',
+    fontSize: 15,
+    width: 90, flexShrink: 0,
+    textAlign: 'center',
+    fontFamily: "'DM Mono',monospace",
   },
-  hint: { fontSize: 11, color: 'var(--ink3)', lineHeight: 1.4 },
+  dtInput: {
+    flex: 1,
+    background: 'var(--surface2)',
+    border: '1.5px solid var(--ink4)',
+    borderRadius: 'var(--r-sm)',
+    color: 'var(--ink)',
+    padding: '11px 14px',
+    fontSize: 13,
+  },
   preview: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '9px 12px',
-    borderRadius: 'var(--radius-sm)',
-    border: '1px solid',
+    padding: '10px 14px',
+    borderRadius: 'var(--r-sm)',
   },
-  error: { fontSize: 12, color: '#DC2626' },
-  submit: {
-    background: 'var(--ink)',
-    color: 'var(--surface)',
-    border: 'none',
-    borderRadius: 'var(--radius-sm)',
-    padding: '12px',
-    fontSize: 14, fontWeight: 600,
+  err: { fontSize: 12, color: 'var(--waste-c)' },
+  cta: {
+    background: 'var(--dark)',
+    color: '#fff',
+    borderRadius: 'var(--r-sm)',
+    padding: '14px',
+    fontSize: 15, fontWeight: 700,
+    letterSpacing: '-0.01em',
     transition: 'opacity 0.15s',
   },
 };
