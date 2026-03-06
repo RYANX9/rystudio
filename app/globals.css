@@ -1,23 +1,53 @@
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #EFECE6;
+  --bg2:      #E8E4DC;
+  --surface:  #FFFFFF;
+  --surface2: #F7F5F1;
+
+  --ink:      #1C1A17;
+  --ink2:     #6B6760;
+  --ink3:     #A9A59D;
+  --ink4:     #C8C4BB;
+
+  --orange:   #E8622A;
+  --orange-d: #C9511F;
+  --orange-s: rgba(232,98,42,0.10);
+  --orange-bg:#FDF0EB;
+
+  --dark:     #2A2723;
+  --dark2:    #3A3733;
+
+  --study-c:  #2A7A50;  --study-bg:  #EAF4EE;  --study-dot: #2A7A50;
+  --waste-c:  #D13A3A;  --waste-bg:  #FDEAEA;  --waste-dot: #D13A3A;
+  --pray-c:   #2B5BB8;  --pray-bg:   #EAF0FC;  --pray-dot:  #2B5BB8;
+  --food-c:   #C05D1A;  --food-bg:   #FDF0E6;  --food-dot:  #C05D1A;
+  --sleep-c:  #6B3FC0;  --sleep-bg:  #F0EBFC;  --sleep-dot: #6B3FC0;
+  --other-c:  #5A5750;  --other-bg:  #F0EDE8;  --other-dot: #9CA3AF;
+
+  --r:    20px;
+  --r-sm: 12px;
+  --r-xs: 8px;
+  --r-pill: 999px;
+
+  --sh:    0 1px 4px rgba(28,26,23,0.04), 0 4px 16px rgba(28,26,23,0.06);
+  --sh-md: 0 2px 8px rgba(28,26,23,0.05), 0 8px 32px rgba(28,26,23,0.09);
 }
 
 html, body {
-  height: 100%;
-  background: #f5f5f0;
-  color: #1a1a1a;
-  font-family: 'Cairo', sans-serif;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-input, select, button, textarea {
-  font-family: 'Cairo', sans-serif;
-}
-
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-}
+input, textarea, select, button { font-family: inherit; }
+input:focus, textarea:focus { outline: none; }
+button { cursor: pointer; border: none; background: none; }
+::-webkit-scrollbar { width: 0; }
+::placeholder { color: var(--ink3); }
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
