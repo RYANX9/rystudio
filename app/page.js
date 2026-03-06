@@ -21,42 +21,47 @@ function fmtDur(m) {
   return `${h}h ${mm}m`;
 }
 
-function formatDateFull(str) {
+function formatDateShort(str) {
   return new Date(str + 'T12:00:00').toLocaleDateString('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long',
+    weekday: 'short', day: 'numeric', month: 'short',
   });
 }
 
+// tab config — icon chars matching reference UI style
 const TABS = [
-  { key: 'log',   icon: '◎', label: 'Log' },
-  { key: 'tasks', icon: '✓', label: 'Tasks' },
-  { key: 'now',   icon: '⊙', label: 'Now' },
-  { key: 'week',  icon: '▦', label: 'Week' },
+  { key: 'log',   icon: LogIcon,   label: 'Log'   },
+  { key: 'tasks', icon: TaskIcon,  label: 'Tasks' },
+  { key: 'now',   icon: NowIcon,   label: 'Now'   },
+  { key: 'week',  icon: WeekIcon,  label: 'Week'  },
 ];
 
 export default function Page() {
-  const [tab, setTab] = useState('log');
-  const [entries, setEntries] = useState([]);
-  const [streak, setStreak] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [tab, setTab]               = useState('log');
+  const [entries, setEntries]       = useState([]);
+  const [streak, setStreak]         = useState(null);
+  const [loading, setLoading]       = useState(false);
   const [selectedDate, setSelectedDate] = useState(todayStr());
 
-  const tz = -new Date().getTimezoneOffset();
+  const tz      = -new Date().getTimezoneOffset();
   const isToday = selectedDate === todayStr();
 
   const fetchEntries = useCallback(async (date) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/entries?date=${date}&tz=${tz}`);
+      const res  = await fetch(`/api/entries?date=${date}&tz=${tz}`);
       const data = await res.json();
       setEntries(Array.isArray(data) ? data : []);
-    } catch { setEntries([]); } finally { setLoading(false); }
+    } catch { setEntries([]); }
+    finally  { setLoading(false); }
   }, [tz]);
 
   useEffect(() => { fetchEntries(selectedDate); }, [selectedDate, fetchEntries]);
 
   useEffect(() => {
-    fetch(`/api/streak?tz=${tz}`).then(r => r.json()).then(setStreak).catch(() => {});
+    fetch(`/api/streak?tz=${tz}`)
+      .then(r => r.json())
+      .then(setStreak)
+      .catch(() => {});
   }, [entries, tz]);
 
   function handleEntryAdded(raw) {
@@ -64,7 +69,8 @@ export default function Page() {
     setEntries(prev => {
       const next = [...prev];
       arr.forEach(e => {
-        const d = new Date(new Date(e.started_at).getTime() + tz * 60000).toISOString().slice(0, 10);
+        const d = new Date(new Date(e.started_at).getTime() + tz * 60000)
+          .toISOString().slice(0, 10);
         if (d === selectedDate && !next.find(x => x.id === e.id)) next.push(e);
       });
       return next.sort((a, b) => new Date(a.started_at) - new Date(b.started_at));
@@ -82,73 +88,138 @@ export default function Page() {
     setSelectedDate(cur.toISOString().slice(0, 10));
   }
 
-  const studyMin = entries.filter(e => e.tag === 'study').reduce((s, e) => s + e.duration_minutes, 0);
+  const studyMin = entries
+    .filter(e => e.tag === 'study')
+    .reduce((s, e) => s + e.duration_minutes, 0);
+
   const pct = Math.min(100, Math.round((studyMin / GOAL) * 100));
+
+  // ring color logic from reference — orange for partial, green for complete
+  const ringColor = pct >= 100
+    ? 'var(--study-c)'
+    : pct >= 50
+    ? 'var(--orange)'
+    : 'var(--ink4)';
+
+  const R = 22, C = 2 * Math.PI * R;
+  const dash = (pct / 100) * C;
+
   const lastEntryEnd = entries.length
-    ? new Date(new Date(entries.at(-1).started_at).getTime() + entries.at(-1).duration_minutes * 60000).toISOString()
+    ? new Date(
+        new Date(entries.at(-1).started_at).getTime() +
+        entries.at(-1).duration_minutes * 60000
+      ).toISOString()
     : null;
 
-  // SVG ring params
-  const R = 26, C = 2 * Math.PI * R;
-  const dash = (pct / 100) * C;
-  const ringColor = pct >= 100 ? 'var(--study-dot)' : pct >= 60 ? 'var(--orange)' : pct >= 30 ? '#E8A22A' : 'var(--ink4)';
+  // tag totals for device-grid cards (like the 4 Lamp / 2 Air Purifier cards)
+  const tagCounts = {};
+  entries.forEach(e => {
+    tagCounts[e.tag] = (tagCounts[e.tag] || 0) + 1;
+  });
+
+  const TAG_META = {
+    study:   { label: 'Study',   color: 'var(--study-c)',  bg: 'var(--study-bg)'  },
+    Wasting: { label: 'Wasting', color: 'var(--waste-c)',  bg: 'var(--waste-bg)'  },
+    prayer:  { label: 'Prayer',  color: 'var(--pray-c)',   bg: 'var(--pray-bg)'   },
+    food:    { label: 'Food',    color: 'var(--food-c)',   bg: 'var(--food-bg)'   },
+    sleep:   { label: 'Sleep',   color: 'var(--sleep-c)',  bg: 'var(--sleep-bg)'  },
+    other:   { label: 'Other',   color: 'var(--other-c)',  bg: 'var(--other-bg)'  },
+  };
 
   return (
     <div style={pg.root}>
 
-      {/* ── HEADER ── */}
+      {/* ── HEADER — matches reference "Hi, Nicole" header ── */}
       <header style={pg.header}>
-        <div style={pg.headerInner}>
+
+        {/* top row: greeting + ring + date nav */}
+        <div style={pg.headerTop}>
           <div style={pg.headerLeft}>
-            <div style={pg.greeting}>
-              {isToday ? 'Today' : formatDateFull(selectedDate)}
-            </div>
-            <div style={pg.subline}>
-              {isToday ? formatDateFull(selectedDate) : 'Past day'}
+            {/* avatar + greeting block like reference */}
+            <div style={pg.avatarRow}>
+              <div style={pg.avatar}>
+                <span style={pg.avatarInitial}>C</span>
+              </div>
+              <div style={pg.greetingBlock}>
+                <div style={pg.greeting}>
+                  {isToday ? 'Today' : formatDateShort(selectedDate)}
+                </div>
+                <div style={pg.subline}>Monitor and track your time</div>
+              </div>
             </div>
           </div>
 
+          {/* right side: SVG ring (like the circular indicator in reference) + nav */}
           <div style={pg.headerRight}>
-            {/* study ring */}
-            <div style={pg.ringWrap} title={`${pct}% of 3h study goal`}>
-              <svg width="64" height="64" viewBox="0 0 64 64">
-                <circle cx="32" cy="32" r={R} fill="none" stroke="var(--bg2)" strokeWidth="5" />
+            <div style={pg.ringBlock}>
+              <svg width="56" height="56" viewBox="0 0 56 56">
+                <circle cx="28" cy="28" r={R} fill="none" stroke="var(--bg2)" strokeWidth="4.5" />
                 <circle
-                  cx="32" cy="32" r={R} fill="none"
-                  stroke={ringColor} strokeWidth="5"
+                  cx="28" cy="28" r={R}
+                  fill="none"
+                  stroke={ringColor}
+                  strokeWidth="4.5"
                   strokeDasharray={`${dash} ${C}`}
                   strokeLinecap="round"
-                  transform="rotate(-90 32 32)"
+                  transform="rotate(-90 28 28)"
                   style={{ transition: 'stroke-dasharray 0.6s ease' }}
                 />
-                <text x="32" y="33" textAnchor="middle" dominantBaseline="middle"
-                  style={{ fontSize: 10, fontWeight: 700, fill: ringColor, fontFamily: "'DM Mono', monospace" }}>
+                <text x="28" y="29" textAnchor="middle" dominantBaseline="middle"
+                  style={{ fontSize: 9, fontWeight: 700, fill: ringColor, fontFamily: "'DM Mono', monospace" }}>
                   {pct}%
                 </text>
               </svg>
               <div style={{ ...pg.ringLabel, color: ringColor }}>{fmtDur(studyMin)}</div>
             </div>
 
-            {/* date nav */}
             <div style={pg.dateNav}>
               <button style={pg.navBtn} onClick={() => shiftDate(-1)}>‹</button>
-              <button style={{ ...pg.navBtn, opacity: isToday ? 0.3 : 1 }}
-                onClick={() => !isToday && shiftDate(1)} disabled={isToday}>›</button>
+              <button
+                style={{ ...pg.navBtn, opacity: isToday ? 0.3 : 1 }}
+                onClick={() => !isToday && shiftDate(1)}
+                disabled={isToday}
+              >›</button>
             </div>
           </div>
         </div>
 
-        {/* streak pill */}
-        {streak?.streak > 0 && (
-          <div style={pg.streakRow}>
-            <div style={pg.streakPill}>
-              <span style={pg.streakDot} />
-              <span style={pg.streakNum}>{streak.streak}</span>
-              <span style={pg.streakTxt}>day streak</span>
+        {/* energy stat + streak — the "932kwh / Data updated X hours ago" card */}
+        <div style={pg.energyCard}>
+          <div style={pg.energyLeft}>
+            <div style={pg.energyIcon}>
+              <BoltIcon size={18} color="var(--orange)" />
             </div>
-            {streak.today_minutes >= GOAL && (
-              <div style={pg.goalBadge}>✓ goal hit</div>
-            )}
+            <div>
+              <div style={pg.energyVal}>
+                <span style={pg.energyNum}>{fmtDur(studyMin)}</span>
+                <span style={pg.energyUnit}>studied</span>
+              </div>
+              <div style={pg.energySub}>
+                {streak?.streak > 0
+                  ? `${streak.streak} day streak · ${streak.today_minutes >= GOAL ? 'goal hit' : `${GOAL - (streak.today_minutes || 0)}m to go`}`
+                  : 'Start your first entry'}
+              </div>
+            </div>
+          </div>
+          <div style={pg.energyArrow}>›</div>
+        </div>
+
+        {/* tag summary grid — 4 device cards from reference */}
+        {entries.length > 0 && (
+          <div style={pg.deviceGrid}>
+            {Object.entries(TAG_META)
+              .filter(([key]) => tagCounts[key])
+              .slice(0, 4)
+              .map(([key, meta]) => (
+                <div key={key} style={{ ...pg.deviceCard, background: meta.bg }}>
+                  <div style={pg.deviceCount}>
+                    <span style={{ ...pg.deviceNum, color: meta.color }}>{tagCounts[key]}</span>
+                    <span style={pg.deviceCountLabel}>entries</span>
+                  </div>
+                  <div style={{ ...pg.deviceLabel, color: meta.color }}>{meta.label}</div>
+                  <div style={{ ...pg.deviceDot, background: meta.color }} />
+                </div>
+              ))}
           </div>
         )}
       </header>
@@ -159,31 +230,84 @@ export default function Page() {
           <>
             <EntryForm onEntryAdded={handleEntryAdded} lastEntryEnd={lastEntryEnd} />
             {loading
-              ? <div style={pg.spin}>Loading entries…</div>
+              ? <div style={pg.spin}>Loading…</div>
               : <Timeline entries={entries} onDelete={handleDelete} tz={tz} />
             }
           </>
         )}
         {tab === 'tasks' && <TodoPanel date={selectedDate} />}
-        {tab === 'now' && <NowPanel />}
-        {tab === 'week' && <WeeklyView />}
+        {tab === 'now'   && <NowPanel />}
+        {tab === 'week'  && <WeeklyView />}
       </main>
 
-      {/* ── TAB BAR ── */}
+      {/* ── TAB BAR — matches reference bottom nav ── */}
       <nav style={pg.tabBar}>
-        {TABS.map(t => (
-          <button key={t.key} style={pg.tabBtn} onClick={() => setTab(t.key)}>
-            <span style={{ ...pg.tabIcon, color: tab === t.key ? 'var(--orange)' : 'var(--ink3)' }}>
-              {t.icon}
-            </span>
-            <span style={{ ...pg.tabLabel, color: tab === t.key ? 'var(--orange)' : 'var(--ink3)', fontWeight: tab === t.key ? 600 : 400 }}>
-              {t.label}
-            </span>
-            {tab === t.key && <span style={pg.tabDot} />}
-          </button>
-        ))}
+        {TABS.map(({ key, icon: Icon, label }) => {
+          const active = tab === key;
+          return (
+            <button key={key} style={pg.tabBtn} onClick={() => setTab(key)}>
+              <div style={{
+                ...pg.tabIconWrap,
+                background: active ? 'var(--dark)' : 'transparent',
+              }}>
+                <Icon size={18} color={active ? '#fff' : 'var(--ink3)'} />
+              </div>
+              <span style={{
+                ...pg.tabLabel,
+                color: active ? 'var(--ink)' : 'var(--ink3)',
+                fontWeight: active ? 600 : 400,
+              }}>
+                {label}
+              </span>
+            </button>
+          );
+        })}
       </nav>
     </div>
+  );
+}
+
+/* ── inline SVG icon components ── */
+function LogIcon({ size = 20, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <rect x="3" y="4" width="14" height="2" rx="1" fill={color}/>
+      <rect x="3" y="9" width="10" height="2" rx="1" fill={color}/>
+      <rect x="3" y="14" width="12" height="2" rx="1" fill={color}/>
+    </svg>
+  );
+}
+function TaskIcon({ size = 20, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <path d="M4 5h2M4 10h2M4 15h2" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+      <path d="M8 5h8M8 10h8M8 15h8" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity=".5"/>
+    </svg>
+  );
+}
+function NowIcon({ size = 20, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <path d="M6 14l2-4 2 3 2-6 2 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <rect x="2" y="3" width="16" height="14" rx="3" stroke={color} strokeWidth="1.5"/>
+    </svg>
+  );
+}
+function WeekIcon({ size = 20, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="5" width="3" height="10" rx="1.5" fill={color} opacity=".35"/>
+      <rect x="6.5" y="8" width="3" height="7" rx="1.5" fill={color} opacity=".55"/>
+      <rect x="11" y="4" width="3" height="11" rx="1.5" fill={color}/>
+      <rect x="15.5" y="7" width="3" height="8" rx="1.5" fill={color} opacity=".45"/>
+    </svg>
+  );
+}
+function BoltIcon({ size = 20, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <path d="M11 2L4 11h6l-1 7 7-9h-6l1-7z" fill={color}/>
+    </svg>
   );
 }
 
@@ -197,48 +321,70 @@ const pg = {
     flexDirection: 'column',
     fontFamily: "'DM Sans', sans-serif",
   },
+
+  /* header */
   header: {
     background: 'var(--surface)',
-    padding: '20px 24px 16px',
-    borderBottom: '1px solid rgba(28,26,23,0.06)',
+    padding: '16px 20px 0',
+    borderBottom: '1px solid rgba(28,26,23,0.07)',
     position: 'sticky',
     top: 0,
     zIndex: 20,
   },
-  headerInner: {
+  headerTop: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  headerLeft: { flex: 1, minWidth: 0, paddingRight: 12 },
+  headerLeft: { flex: 1, minWidth: 0 },
+  avatarRow: { display: 'flex', alignItems: 'center', gap: 12 },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: '50%',
+    background: 'var(--dark)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    border: '2px solid var(--bg2)',
+  },
+  avatarInitial: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#fff',
+    letterSpacing: '-0.02em',
+  },
+  greetingBlock: { minWidth: 0 },
   greeting: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 800,
     letterSpacing: '-0.03em',
     color: 'var(--ink)',
     lineHeight: 1.1,
   },
   subline: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'var(--ink3)',
     fontWeight: 400,
-    marginTop: 4,
+    marginTop: 3,
   },
   headerRight: {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flexShrink: 0,
   },
-  ringWrap: {
+  ringBlock: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     gap: 2,
   },
   ringLabel: {
-    fontSize: 10,
-    fontWeight: 600,
+    fontSize: 9,
+    fontWeight: 700,
     fontFamily: "'DM Mono', monospace",
     letterSpacing: '0.02em',
   },
@@ -251,56 +397,122 @@ const pg = {
     color: 'var(--ink2)',
     fontSize: 16,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
+    lineHeight: 1,
   },
-  streakRow: {
+
+  /* energy card — the dark stat pill at bottom of header */
+  energyCard: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 14,
+    background: 'var(--dark)',
+    borderRadius: 'var(--r)',
+    padding: '14px 18px',
+    marginBottom: 14,
+    gap: 14,
   },
-  streakPill: {
+  energyLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
-    background: 'var(--orange-bg)',
-    border: '1px solid rgba(232,98,42,0.2)',
-    borderRadius: 'var(--r-pill)',
-    padding: '5px 12px',
+    gap: 12,
+    flex: 1,
+    minWidth: 0,
   },
-  streakDot: {
-    width: 6, height: 6,
+  energyIcon: {
+    width: 36,
+    height: 36,
     borderRadius: '50%',
-    background: 'var(--orange)',
-    display: 'block',
+    background: 'var(--dark2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    border: '1.5px solid rgba(232,98,42,0.3)',
   },
-  streakNum: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: 'var(--orange)',
+  energyVal: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  energyNum: {
+    fontSize: 20,
+    fontWeight: 800,
+    color: '#fff',
+    fontFamily: "'DM Mono', monospace",
+    letterSpacing: '-0.03em',
+    lineHeight: 1,
+  },
+  energyUnit: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: 400,
+  },
+  energySub: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.35)',
+    fontWeight: 400,
+    marginTop: 3,
+  },
+  energyArrow: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 20,
+    flexShrink: 0,
+  },
+
+  /* device grid — 4 tag cards */
+  deviceGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 10,
+    marginBottom: 14,
+  },
+  deviceCard: {
+    borderRadius: 'var(--r-sm)',
+    padding: '14px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    position: 'relative',
+  },
+  deviceCount: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  deviceNum: {
+    fontSize: 22,
+    fontWeight: 800,
+    letterSpacing: '-0.03em',
+    lineHeight: 1,
     fontFamily: "'DM Mono', monospace",
   },
-  streakTxt: {
-    fontSize: 12,
-    color: 'var(--orange)',
+  deviceCountLabel: {
+    fontSize: 10,
+    color: 'var(--ink3)',
     fontWeight: 500,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
   },
-  goalBadge: {
-    background: 'var(--study-bg)',
-    color: 'var(--study-c)',
-    fontSize: 11,
+  deviceLabel: {
+    fontSize: 13,
     fontWeight: 600,
-    padding: '5px 10px',
-    borderRadius: 'var(--r-pill)',
-    border: '1px solid rgba(42,122,80,0.2)',
   },
+  deviceDot: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    position: 'absolute',
+    bottom: 14,
+    right: 16,
+  },
+
+  /* main content */
   content: {
     flex: 1,
     padding: '16px 16px 8px',
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
-    overflowY: 'auto',
-    paddingBottom: 90,
+    paddingBottom: 88,
   },
   spin: {
     textAlign: 'center',
@@ -308,16 +520,19 @@ const pg = {
     fontSize: 13,
     padding: '32px 0',
   },
+
+  /* tab bar — matches reference bottom nav with icon pill style */
   tabBar: {
     position: 'fixed',
-    bottom: 0, left: '50%',
+    bottom: 0,
+    left: '50%',
     transform: 'translateX(-50%)',
     width: '100%',
     maxWidth: 480,
     background: 'var(--surface)',
     borderTop: '1px solid rgba(28,26,23,0.07)',
     display: 'flex',
-    padding: '8px 8px 16px',
+    padding: '10px 8px 20px',
     zIndex: 30,
   },
   tabBtn: {
@@ -325,27 +540,23 @@ const pg = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 3,
-    padding: '6px 4px',
-    position: 'relative',
+    gap: 4,
+    padding: '4px 0',
     background: 'none',
     border: 'none',
   },
-  tabIcon: {
-    fontSize: 18,
-    lineHeight: 1,
-    transition: 'color 0.15s',
+  tabIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
   },
   tabLabel: {
     fontSize: 10,
-    letterSpacing: '0.02em',
+    letterSpacing: '0.01em',
     transition: 'color 0.15s',
-  },
-  tabDot: {
-    position: 'absolute',
-    bottom: 0,
-    width: 4, height: 4,
-    borderRadius: '50%',
-    background: 'var(--orange)',
   },
 };
