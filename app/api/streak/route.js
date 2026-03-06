@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import sql from '@/lib/db';
 
-const GOAL_MINUTES = 360;
+const GOAL_MINUTES = 180;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -15,7 +15,7 @@ export async function GET(request) {
         SUM(duration_minutes)::int AS study_minutes
       FROM entries
       WHERE tag = 'study'
-        AND started_at >= NOW() - INTERVAL '60 days'
+        AND started_at >= NOW() - INTERVAL '180 days'
       GROUP BY DATE(started_at + make_interval(hours => ${tzHours}))
       ORDER BY date DESC
     `;
@@ -27,29 +27,42 @@ export async function GET(request) {
 
     const todayMinutes = byDate[todayStr] || 0;
 
+    // current streak
     let streak = 0;
     const cursor = new Date(todayStr + 'T12:00:00Z');
     if (todayMinutes < GOAL_MINUTES) cursor.setUTCDate(cursor.getUTCDate() - 1);
-
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 180; i++) {
       const d = cursor.toISOString().slice(0, 10);
       if ((byDate[d] || 0) >= GOAL_MINUTES) {
         streak++;
         cursor.setUTCDate(cursor.getUTCDate() - 1);
-      } else {
-        break;
-      }
+      } else break;
     }
 
-    return NextResponse.json({ streak, today_minutes: todayMinutes, goal: GOAL_MINUTES });
+    // longest streak
+    const sorted = Object.keys(byDate).sort();
+    let longest = 0, temp = 0;
+    for (const d of sorted) {
+      if ((byDate[d] || 0) >= GOAL_MINUTES) { temp++; if (temp > longest) longest = temp; }
+      else temp = 0;
+    }
+
+    const totalGoalDays = Object.values(byDate).filter((m) => m >= GOAL_MINUTES).length;
+
+    return NextResponse.json({
+      streak,
+      longest_streak: longest,
+      total_goal_days: totalGoalDays,
+      today_minutes: todayMinutes,
+      goal: GOAL_MINUTES,
+    });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 function localDateStr(date, tzOffsetMinutes) {
-  return new Date(date.getTime() + tzOffsetMinutes * 60000)
-    .toISOString().slice(0, 10);
+  return new Date(date.getTime() + tzOffsetMinutes * 60000).toISOString().slice(0, 10);
 }
 
 function normalizeDate(val) {
