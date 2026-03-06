@@ -3,47 +3,30 @@ import sql from '@/lib/db';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const date = searchParams.get('date');
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
-  const tz = parseInt(searchParams.get('tz') || '0', 10);
+  const date  = searchParams.get('date');
+  const from  = searchParams.get('from');
+  const to    = searchParams.get('to');
+  const tz    = parseInt(searchParams.get('tz') || '0', 10);
+  const tzH   = tz / 60.0;
 
   try {
-    let entries;
-
-    if (from && to) {
-      const fromUTC = new Date(from + 'T00:00:00Z');
-      fromUTC.setUTCMinutes(fromUTC.getUTCMinutes() - tz);
-      const toUTC = new Date(to + 'T23:59:59Z');
-      toUTC.setUTCMinutes(toUTC.getUTCMinutes() - tz + 1439);
-
-      entries = await sql`
+    let rows;
+    if (date) {
+      rows = await sql`
         SELECT * FROM entries
-        WHERE started_at >= ${fromUTC.toISOString()}
-          AND started_at <= ${toUTC.toISOString()}
+        WHERE DATE(started_at + make_interval(hours => ${tzH})) = ${date}::date
         ORDER BY started_at ASC
       `;
-    } else if (date) {
-      const dayStartLocal = new Date(date + 'T00:00:00Z');
-      dayStartLocal.setUTCMinutes(dayStartLocal.getUTCMinutes() - tz);
-      const dayEndLocal = new Date(date + 'T23:59:59Z');
-      dayEndLocal.setUTCMinutes(dayEndLocal.getUTCMinutes() - tz);
-
-      entries = await sql`
+    } else if (from && to) {
+      rows = await sql`
         SELECT * FROM entries
-        WHERE started_at >= ${dayStartLocal.toISOString()}
-          AND started_at <= ${dayEndLocal.toISOString()}
+        WHERE DATE(started_at + make_interval(hours => ${tzH})) BETWEEN ${from}::date AND ${to}::date
         ORDER BY started_at ASC
       `;
     } else {
-      entries = await sql`
-        SELECT * FROM entries
-        ORDER BY started_at DESC
-        LIMIT 50
-      `;
+      rows = await sql`SELECT * FROM entries ORDER BY started_at DESC LIMIT 100`;
     }
-
-    return NextResponse.json(entries);
+    return NextResponse.json(rows);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -51,54 +34,37 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { activity, tag, started_at, duration_minutes, tz: bodyTz } = await request.json();
-
-    if (!activity || !started_at || !duration_minutes) {
-      return NextResponse.json(
-        { error: 'activity, started_at, duration_minutes are required' },
-        { status: 400 }
-      );
+    const { activity, tag, started_at, duration_minutes, tz = 0 } = await request.json();
+    if (!activity?.trim() || !tag || !started_at || !duration_minutes) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-
-    // Use tz from body if provided, fallback to 60 (Algeria UTC+1)
-    const tzOffsetMinutes = typeof bodyTz === 'number' ? bodyTz : 60;
-    const tzOffsetMs = tzOffsetMinutes * 60000;
 
     const start = new Date(started_at);
-    const end = new Date(start.getTime() + duration_minutes * 60000);
+    const end   = new Date(start.getTime() + duration_minutes * 60000);
+    const tzOff = tz * 60000;
 
-    const localStart = start.getTime() + tzOffsetMs;
-    const localEnd = end.getTime() + tzOffsetMs;
-    const localStartDay = Math.floor(localStart / 86400000);
-    const localEndDay = Math.floor(localEnd / 86400000);
+    const startLocal = new Date(start.getTime() + tzOff);
+    const endLocal   = new Date(end.getTime() + tzOff);
 
-    if (localEndDay > localStartDay) {
-      const nextLocalMidnightUTC = (localStartDay + 1) * 86400000 - tzOffsetMs;
-      const firstDuration = Math.round((nextLocalMidnightUTC - start.getTime()) / 60000);
-      const secondDuration = duration_minutes - firstDuration;
-
-      if (firstDuration > 0 && secondDuration > 0) {
-        const secondStart = new Date(nextLocalMidnightUTC);
-        const [entry1] = await sql`
-          INSERT INTO entries (activity, tag, started_at, duration_minutes)
-          VALUES (${activity}, ${tag || 'other'}, ${start.toISOString()}, ${firstDuration})
-          RETURNING *
-        `;
-        const [entry2] = await sql`
-          INSERT INTO entries (activity, tag, started_at, duration_minutes)
-          VALUES (${activity}, ${tag || 'other'}, ${secondStart.toISOString()}, ${secondDuration})
-          RETURNING *
-        `;
-        return NextResponse.json([entry1, entry2], { status: 201 });
-      }
+    // midnight split in user's timezone
+    if (startLocal.toISOString().slice(0, 10) !== endLocal.toISOString().slice(0, 10)) {
+      const midnight = new Date(endLocal.toISOString().slice(0, 10) + 'T00:00:00.000Z');
+      const midnightUTC = new Date(midnight.getTime() - tzOff);
+      const dur1 = Math.round((midnightUTC - start) / 60000);
+      const dur2 = duration_minutes - dur1;
+      const results = await Promise.all([
+        dur1 > 0 ? sql`INSERT INTO entries (activity,tag,started_at,duration_minutes) VALUES (${activity.trim()},${tag},${start.toISOString()},${dur1}) RETURNING *` : null,
+        dur2 > 0 ? sql`INSERT INTO entries (activity,tag,started_at,duration_minutes) VALUES (${activity.trim()},${tag},${midnightUTC.toISOString()},${dur2}) RETURNING *` : null,
+      ]);
+      return NextResponse.json(results.filter(Boolean).flatMap(r => r));
     }
 
-    const [entry] = await sql`
+    const [row] = await sql`
       INSERT INTO entries (activity, tag, started_at, duration_minutes)
-      VALUES (${activity}, ${tag || 'other'}, ${started_at}, ${duration_minutes})
+      VALUES (${activity.trim()}, ${tag}, ${start.toISOString()}, ${duration_minutes})
       RETURNING *
     `;
-    return NextResponse.json(entry, { status: 201 });
+    return NextResponse.json(row, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -107,11 +73,9 @@ export async function POST(request) {
 export async function DELETE(request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
-
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-
   try {
-    await sql`DELETE FROM entries WHERE id = ${id}`;
+    await sql`DELETE FROM entries WHERE id = ${parseInt(id)}`;
     return NextResponse.json({ deleted: true });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
