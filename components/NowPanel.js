@@ -1,33 +1,46 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 
+function localNow() {
+  const now = new Date();
+  const tz  = -now.getTimezoneOffset();
+  const loc = new Date(now.getTime() + tz * 60000);
+  return {
+    local_date: loc.toISOString().slice(0, 10),
+    local_time: loc.toISOString().slice(11, 16),
+  };
+}
+
+function fmtDate(str) {
+  return new Date(str + 'T12:00:00Z').toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+}
+
 export default function NowPanel() {
-  const [notes, setNotes] = useState([]);
-  const [body, setBody] = useState('');
+  const [notes, setNotes]     = useState([]);
+  const [body, setBody]       = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const textareaRef = useRef(null);
+  const [saving, setSaving]   = useState(false);
+  const [copied, setCopied]   = useState(false);
+  const ref = useRef(null);
+
+  const todayStr = localNow().local_date;
 
   useEffect(() => {
     fetch('/api/now-notes')
       .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setNotes(data); })
+      .then(d => { if (Array.isArray(d)) setNotes(d); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleLock() {
+  async function lock() {
     const text = body.trim();
-    if (!text) return;
+    if (!text || saving) return;
     setSaving(true);
     try {
-      const now = new Date();
-      const tz = -now.getTimezoneOffset();
-      const local = new Date(now.getTime() + tz * 60000);
-      const local_date = local.toISOString().slice(0, 10);
-      const local_time = local.toISOString().slice(11, 16);
-
+      const { local_date, local_time } = localNow();
       const res = await fetch('/api/now-notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,98 +50,96 @@ export default function NowPanel() {
       const note = await res.json();
       setNotes(prev => [note, ...prev]);
       setBody('');
-      textareaRef.current?.focus();
-    } catch (_) {}
-    finally { setSaving(false); }
+      ref.current?.focus();
+    } catch (_) {
+      alert('Failed to save note. Check your connection.');
+    } finally { setSaving(false); }
   }
 
-  function handleKeyDown(e) {
-    // Ctrl+Enter to lock
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      handleLock();
-    }
+  function onKeyDown(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); lock(); }
   }
 
-  function exportNotes() {
-    const today = new Date().toISOString().slice(0, 10);
+  function exportAll() {
     const grouped = {};
-    for (const n of notes) {
+    [...notes].reverse().forEach(n => {
       if (!grouped[n.local_date]) grouped[n.local_date] = [];
       grouped[n.local_date].push(n);
-    }
-    const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-    const lines = ['NOW NOTES', '─'.repeat(30), ''];
-    for (const d of dates) {
-      lines.push(d === today ? `Today — ${d}` : d);
-      for (const n of grouped[d]) lines.push(`[${n.local_time}]  ${n.body}`);
-      lines.push('');
-    }
-    navigator.clipboard.writeText(lines.join('\n').trim()).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    });
+    const lines = ['NOW NOTES', '─'.repeat(30)];
+    Object.keys(grouped).sort((a, b) => b.localeCompare(a)).forEach(d => {
+      lines.push('', d === todayStr ? `Today — ${d}` : d);
+      grouped[d].forEach(n => lines.push(`[${n.local_time}]  ${n.body}`));
+    });
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 2000);
     }).catch(() => {});
   }
 
-  // Group notes by local_date, newest date first
+  // group by date newest first
   const grouped = {};
-  for (const n of notes) {
-    if (!grouped[n.local_date]) grouped[n.local_date] = [];
-    grouped[n.local_date].push(n);
-  }
-  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-  const today = new Date().toISOString().slice(0, 10);
+  notes.forEach(n => { if (!grouped[n.local_date]) grouped[n.local_date] = []; grouped[n.local_date].push(n); });
+  const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
   return (
-    <div style={s.wrapper}>
-      {/* Input area */}
-      <div style={s.inputCard}>
-        <div style={s.inputHeader}>
-          <span style={s.inputLabel}>Capture a thought</span>
-          <span style={s.inputHint}>Ctrl + Enter to lock</span>
+    <div style={s.wrap}>
+
+      {/* ── compose ── */}
+      <div style={s.composeCard}>
+        <div style={s.composeHeader}>
+          <div>
+            <div style={s.composeTitle}>Capture a thought</div>
+            <div style={s.composeSub}>Once locked, it stays forever</div>
+          </div>
+          {notes.length > 0 && (
+            <button style={s.exportBtn} onClick={exportAll}>
+              {copied ? '✓ Copied' : `Export (${notes.length})`}
+            </button>
+          )}
         </div>
+
         <textarea
-          ref={textareaRef}
+          ref={ref}
           style={s.textarea}
-          placeholder="An idea, a decision, something on your mind... once locked, it stays forever."
+          placeholder="An idea, a plan, something on your mind…"
           value={body}
           onChange={e => setBody(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={onKeyDown}
           rows={4}
         />
-        <button
-          style={{ ...s.lockBtn, opacity: (!body.trim() || saving) ? 0.5 : 1 }}
-          onClick={handleLock}
-          disabled={!body.trim() || saving}
-        >
-          <span style={s.lockIcon}>🔒</span>
-          {saving ? 'Locking...' : 'Lock it'}
-        </button>
+
+        <div style={s.composeFooter}>
+          <span style={s.hint}>Ctrl + Enter to lock</span>
+          <button
+            style={{
+              ...s.lockBtn,
+              opacity: (!body.trim() || saving) ? 0.4 : 1,
+              cursor: (!body.trim() || saving) ? 'not-allowed' : 'pointer',
+            }}
+            onClick={lock}
+            disabled={!body.trim() || saving}
+          >
+            {saving ? 'Locking…' : '🔒 Lock it'}
+          </button>
+        </div>
       </div>
 
-      {/* Export */}
-      {notes.length > 0 && (
-        <button style={s.exportBtn} onClick={exportNotes}>
-          {copied ? '✓ Copied' : `Export all (${notes.length})`}
-        </button>
-      )}
-
-      {/* Notes feed */}
+      {/* ── feed ── */}
       {loading ? (
-        <div style={s.loading}>Loading...</div>
+        <div style={s.loading}>Loading notes…</div>
       ) : notes.length === 0 ? (
-        <div style={s.empty}>
-          <div style={s.emptyLock}>🔒</div>
-          <div style={s.emptyTitle}>Locked thoughts appear here</div>
-          <div style={s.emptyHint}>Cannot be edited or deleted.</div>
+        <div style={s.emptyCard}>
+          <div style={s.emptyIcon}>🔒</div>
+          <div style={s.emptyTitle}>No locked thoughts yet</div>
+          <div style={s.emptySub}>Write something above and lock it. It will live here permanently.</div>
         </div>
       ) : (
-        sortedDates.map(date => (
-          <div key={date} style={s.dateGroup}>
+        dates.map(date => (
+          <div key={date} style={s.group}>
             <div style={s.dateSep}>
               <div style={s.dateLine} />
-              <span style={s.dateText}>
-                {date === today ? 'Today' : formatDate(date)}
+              <span style={s.dateLabel}>
+                {date === todayStr ? 'Today' : fmtDate(date)}
               </span>
               <div style={s.dateLine} />
               <span style={s.dateCount}>{grouped[date].length}</span>
@@ -148,9 +159,9 @@ function NoteCard({ note }) {
     <div style={s.noteCard}>
       <div style={s.noteTop}>
         <span style={s.noteTime}>{note.local_time}</span>
-        <div style={s.lockedBadge}>
-          <span>🔒</span>
-          <span style={s.lockedText}>locked</span>
+        <div style={s.lockedPill}>
+          <span style={{ fontSize: 10 }}>🔒</span>
+          <span style={s.lockedTxt}>locked</span>
         </div>
       </div>
       <p style={s.noteBody}>{note.body}</p>
@@ -158,106 +169,124 @@ function NoteCard({ note }) {
   );
 }
 
-function formatDate(str) {
-  return new Date(str + 'T12:00:00Z').toLocaleDateString([], {
-    weekday: 'short', month: 'short', day: 'numeric',
-  });
-}
-
 const s = {
-  wrapper: { display: 'flex', flexDirection: 'column', gap: 12 },
-  inputCard: {
+  wrap: { display: 'flex', flexDirection: 'column', gap: 12 },
+
+  composeCard: {
     background: 'var(--surface)',
-    borderRadius: 'var(--radius)',
-    padding: 16,
-    boxShadow: 'var(--shadow)',
-    display: 'flex', flexDirection: 'column', gap: 10,
+    borderRadius: 'var(--r)',
+    padding: 20,
+    boxShadow: 'var(--sh)',
+    display: 'flex', flexDirection: 'column', gap: 14,
   },
-  inputHeader: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+  composeHeader: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
   },
-  inputLabel: { fontSize: 12, fontWeight: 600, color: 'var(--ink2)' },
-  inputHint: { fontSize: 10, color: 'var(--ink3)' },
+  composeTitle: { fontSize: 18, fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em' },
+  composeSub: { fontSize: 12, color: 'var(--ink3)', marginTop: 2 },
+  exportBtn: {
+    background: 'var(--surface2)',
+    border: '1px solid var(--ink4)',
+    color: 'var(--ink2)',
+    borderRadius: 'var(--r-pill)',
+    padding: '6px 14px',
+    fontSize: 12, fontWeight: 500,
+    flexShrink: 0,
+  },
+
   textarea: {
     background: 'var(--surface2)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-sm)',
+    border: '1.5px solid var(--ink4)',
+    borderRadius: 'var(--r-sm)',
     color: 'var(--ink)',
-    padding: '11px 13px',
-    fontSize: 14,
-    lineHeight: 1.6,
-    resize: 'none',
+    padding: '13px 16px',
+    fontSize: 15,
+    lineHeight: 1.65,
+    resize: 'vertical',
     width: '100%',
+    minHeight: 100,
     fontFamily: "'DM Sans', sans-serif",
   },
+
+  composeFooter: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+  },
+  hint: { fontSize: 11, color: 'var(--ink3)' },
   lockBtn: {
-    background: 'var(--ink)',
-    color: 'var(--surface)',
+    background: 'var(--orange)',
+    color: '#fff',
     border: 'none',
-    borderRadius: 'var(--radius-sm)',
-    padding: '11px',
-    fontSize: 14, fontWeight: 600,
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+    borderRadius: 'var(--r-sm)',
+    padding: '11px 20px',
+    fontSize: 14, fontWeight: 700,
+    letterSpacing: '-0.01em',
     transition: 'opacity 0.15s',
   },
-  lockIcon: { fontSize: 14 },
-  exportBtn: {
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    color: 'var(--ink2)',
-    borderRadius: 'var(--radius-sm)',
-    padding: '9px 14px',
-    fontSize: 12, fontWeight: 500,
-    boxShadow: 'var(--shadow)',
-    alignSelf: 'flex-start',
-    transition: 'all 0.15s',
-  },
+
   loading: { textAlign: 'center', color: 'var(--ink3)', fontSize: 13, padding: '24px 0' },
-  empty: {
+
+  emptyCard: {
     background: 'var(--surface)',
-    borderRadius: 'var(--radius)',
-    padding: '40px 20px',
+    borderRadius: 'var(--r)',
+    padding: '48px 24px',
     textAlign: 'center',
-    boxShadow: 'var(--shadow)',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+    boxShadow: 'var(--sh)',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
   },
-  emptyLock: { fontSize: 32, opacity: 0.3 },
-  emptyTitle: { fontSize: 14, fontWeight: 600, color: 'var(--ink2)' },
-  emptyHint: { fontSize: 12, color: 'var(--ink3)' },
-  dateGroup: { display: 'flex', flexDirection: 'column', gap: 8 },
+  emptyIcon: { fontSize: 36 },
+  emptyTitle: { fontSize: 16, fontWeight: 700, color: 'var(--ink2)' },
+  emptySub: { fontSize: 13, color: 'var(--ink3)', maxWidth: 260 },
+
+  group: { display: 'flex', flexDirection: 'column', gap: 8 },
+
   dateSep: {
-    display: 'flex', alignItems: 'center', gap: 8,
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '4px 0',
   },
-  dateLine: { flex: 1, height: 1, background: 'var(--border)' },
-  dateText: {
-    fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
-    textTransform: 'uppercase', color: 'var(--ink3)', whiteSpace: 'nowrap',
+  dateLine: { flex: 1, height: 1, background: 'var(--ink4)' },
+  dateLabel: {
+    fontSize: 11, fontWeight: 700, color: 'var(--ink3)',
+    letterSpacing: '0.06em', textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
   },
   dateCount: {
-    fontSize: 10, fontWeight: 600, color: 'var(--surface)',
-    background: 'var(--ink3)', borderRadius: 100,
-    padding: '1px 6px', minWidth: 18, textAlign: 'center',
+    background: 'var(--dark)',
+    color: '#fff',
+    fontSize: 10, fontWeight: 600,
+    borderRadius: 'var(--r-pill)',
+    padding: '2px 8px',
   },
+
   noteCard: {
     background: 'var(--surface)',
-    borderRadius: 'var(--radius)',
-    padding: '14px 16px',
-    boxShadow: 'var(--shadow)',
-    display: 'flex', flexDirection: 'column', gap: 8,
+    borderRadius: 'var(--r)',
+    padding: '16px 18px',
+    boxShadow: 'var(--sh)',
+    display: 'flex', flexDirection: 'column', gap: 10,
   },
-  noteTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  noteTop: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+  },
   noteTime: {
-    fontSize: 11, color: 'var(--ink3)',
-    fontFamily: "'DM Mono', monospace", fontWeight: 500,
+    fontSize: 12, color: 'var(--ink3)',
+    fontFamily: "'DM Mono',monospace", fontWeight: 500,
   },
-  lockedBadge: {
-    display: 'flex', alignItems: 'center', gap: 3,
-    background: 'var(--surface2)', border: '1px solid var(--border)',
-    borderRadius: 100, padding: '2px 8px',
+  lockedPill: {
+    display: 'flex', alignItems: 'center', gap: 4,
+    background: 'var(--surface2)',
+    border: '1px solid var(--ink4)',
+    borderRadius: 'var(--r-pill)',
+    padding: '3px 10px',
   },
-  lockedText: { fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: 'var(--ink3)', textTransform: 'uppercase' },
+  lockedTxt: {
+    fontSize: 10, fontWeight: 600, color: 'var(--ink3)',
+    letterSpacing: '0.05em', textTransform: 'uppercase',
+  },
   noteBody: {
-    fontSize: 14, color: 'var(--ink)', lineHeight: 1.65,
-    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+    fontSize: 15,
+    color: 'var(--ink)',
+    lineHeight: 1.65,
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
   },
 };
