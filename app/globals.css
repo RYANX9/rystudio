@@ -4,13 +4,13 @@
 
 :root {
   --bg:       #EFECE6;
-  --bg2:      #E8E4DC;
-  --surface:  #FFFFFF;
-  --surface2: #F7F5F1;
+  --bg2:      #E4E0D8;
+  --surface:  #FAFAF8;
+  --surface2: #F2EFE9;
 
   --ink:      #1C1A17;
-  --ink2:     #6B6760;
-  --ink3:     #A9A59D;
+  --ink2:     #5C5A56;
+  --ink3:     #9A9690;
   --ink4:     #C8C4BB;
 
   --orange:   #E8622A;
@@ -18,23 +18,24 @@
   --orange-s: rgba(232,98,42,0.10);
   --orange-bg:#FDF0EB;
 
-  --dark:     #2A2723;
-  --dark2:    #3A3733;
+  --dark:     #272421;
+  --dark2:    #363330;
+  --dark3:    #454240;
 
-  --study-c:  #2A7A50;  --study-bg:  #EAF4EE;  --study-dot: #2A7A50;
-  --waste-c:  #D13A3A;  --waste-bg:  #FDEAEA;  --waste-dot: #D13A3A;
-  --pray-c:   #2B5BB8;  --pray-bg:   #EAF0FC;  --pray-dot:  #2B5BB8;
-  --food-c:   #C05D1A;  --food-bg:   #FDF0E6;  --food-dot:  #C05D1A;
-  --sleep-c:  #6B3FC0;  --sleep-bg:  #F0EBFC;  --sleep-dot: #6B3FC0;
-  --other-c:  #5A5750;  --other-bg:  #F0EDE8;  --other-dot: #9CA3AF;
+  --study-c:   #2A7A50;  --study-bg:  #EAF4EE;  --study-dot: #2A7A50;
+  --waste-c:   #D13A3A;  --waste-bg:  #FDEAEA;  --waste-dot: #D13A3A;
+  --pray-c:    #2B5BB8;  --pray-bg:   #EAF0FC;  --pray-dot:  #2B5BB8;
+  --food-c:    #C05D1A;  --food-bg:   #FDF0E6;  --food-dot:  #C05D1A;
+  --sleep-c:   #6B3FC0;  --sleep-bg:  #F0EBFC;  --sleep-dot: #6B3FC0;
+  --other-c:   #5A5750;  --other-bg:  #F0EDE8;  --other-dot: #9CA3AF;
 
-  --r:    20px;
-  --r-sm: 12px;
-  --r-xs: 8px;
+  --r:      20px;
+  --r-sm:   12px;
+  --r-xs:   8px;
   --r-pill: 999px;
 
-  --sh:    0 1px 4px rgba(28,26,23,0.04), 0 4px 16px rgba(28,26,23,0.06);
-  --sh-md: 0 2px 8px rgba(28,26,23,0.05), 0 8px 32px rgba(28,26,23,0.09);
+  --sh:    0 1px 3px rgba(28,26,23,0.04), 0 4px 12px rgba(28,26,23,0.06);
+  --sh-md: 0 2px 8px rgba(28,26,23,0.05), 0 8px 24px rgba(28,26,23,0.08);
 }
 
 html, body {
@@ -43,11 +44,13 @@ html, body {
   color: var(--ink);
   font-family: 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 input, textarea, select, button { font-family: inherit; }
-input:focus, textarea:focus { outline: none; }
+input:focus, textarea:focus, select:focus { outline: none; }
 button { cursor: pointer; border: none; background: none; }
-::-webkit-scrollbar { width: 0; }
+::-webkit-scrollbar { width: 0; height: 0; }
 ::placeholder { color: var(--ink3); }
-input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
