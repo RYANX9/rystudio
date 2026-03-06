@@ -1,84 +1,81 @@
 'use client';
 
-const TAG_COLORS = {
-  study:   { bg: '#052e16', text: '#22c55e', border: '#166534' },
-  Wasting: { bg: '#2d0a0a', text: '#ef4444', border: '#7f1d1d' },
-  prayer:  { bg: '#0c1a3a', text: '#60a5fa', border: '#1e3a8a' },
-  food:    { bg: '#1c0e04', text: '#f97316', border: '#7c2d12' },
-  sleep:   { bg: '#150d2e', text: '#a78bfa', border: '#4c1d95' },
-  other:   { bg: '#111',    text: '#9ca3af', border: '#374151' },
+const TAG_STYLE = {
+  study:   { bg: 'var(--accent2-bg)', color: 'var(--accent2)', dot: '#2D7A4F' },
+  Wasting: { bg: '#FEF2F2',           color: '#DC2626',         dot: '#DC2626' },
+  prayer:  { bg: '#EFF6FF',           color: '#2563EB',         dot: '#2563EB' },
+  food:    { bg: '#FFF7ED',           color: '#C2410C',         dot: '#EA580C' },
+  sleep:   { bg: '#F5F3FF',           color: '#7C3AED',         dot: '#7C3AED' },
+  other:   { bg: 'var(--surface2)',   color: 'var(--ink2)',     dot: '#9CA3AF' },
 };
 
-export default function Timeline({ entries, onDelete, budgets = {} }) {
+function fmtDur(m) {
+  const h = Math.floor(m / 60), mm = m % 60;
+  if (h === 0) return `${mm}m`;
+  if (mm === 0) return `${h}h`;
+  return `${h}h\u202f${mm}m`;
+}
+
+export default function Timeline({ entries, onDelete }) {
   if (!entries.length) {
-    return <div style={styles.empty}>nothing logged yet</div>;
+    return (
+      <div style={s.empty}>
+        <div style={s.emptyIcon}>○</div>
+        <div>Nothing logged yet</div>
+      </div>
+    );
   }
 
-  const studyMinutes = entries.filter((e) => e.tag === 'study').reduce((s, e) => s + e.duration_minutes, 0);
-  const totalMinutes = entries.reduce((s, e) => s + e.duration_minutes, 0);
-
-  const tagTotals = entries.reduce((acc, e) => {
-    acc[e.tag] = (acc[e.tag] || 0) + e.duration_minutes;
-    return acc;
-  }, {});
+  const studyMin = entries.filter(e => e.tag === 'study').reduce((sum, e) => sum + e.duration_minutes, 0);
+  const totalMin = entries.reduce((sum, e) => sum + e.duration_minutes, 0);
+  const tz = -new Date().getTimezoneOffset();
 
   const sorted = [...entries].sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.statsRow}>
-        <div style={styles.stat}>
-          <span style={{ ...styles.statVal, color: '#22c55e' }}>{formatDuration(studyMinutes)}</span>
-          <span style={styles.statLabel}>studied</span>
+    <div style={s.wrapper}>
+      {/* Stat cards */}
+      <div style={s.statRow}>
+        <div style={s.statCard}>
+          <span style={{ ...s.statVal, color: 'var(--accent2)' }}>{fmtDur(studyMin)}</span>
+          <span style={s.statLabel}>studied</span>
         </div>
-        <div style={styles.statDivider} />
-        <div style={styles.stat}>
-          <span style={styles.statVal}>{formatDuration(totalMinutes)}</span>
-          <span style={styles.statLabel}>total</span>
+        <div style={s.statCard}>
+          <span style={s.statVal}>{fmtDur(totalMin)}</span>
+          <span style={s.statLabel}>total</span>
         </div>
-        <div style={styles.statDivider} />
-        <div style={styles.stat}>
-          <span style={styles.statVal}>{entries.length}</span>
-          <span style={styles.statLabel}>entries</span>
+        <div style={s.statCard}>
+          <span style={s.statVal}>{entries.length}</span>
+          <span style={s.statLabel}>entries</span>
         </div>
       </div>
 
-      {/* budget warnings */}
-      {Object.entries(budgets).map(([tag, limit]) => {
-        const used = tagTotals[tag] || 0;
-        if (used <= limit) return null;
-        const c = TAG_COLORS[tag] || TAG_COLORS.other;
-        return (
-          <div key={tag} style={{ ...styles.budgetAlert, background: c.bg, borderColor: c.border, color: c.text }}>
-            {tag}: {formatDuration(used)} / {formatDuration(limit)} limit exceeded
-          </div>
-        );
-      })}
-
-      <div style={styles.list}>
-        {sorted.map((entry) => {
-          const tz = -new Date().getTimezoneOffset();
+      {/* Entry list */}
+      <div style={s.list}>
+        {sorted.map(entry => {
           const start = new Date(new Date(entry.started_at).getTime() + tz * 60000);
           const end = new Date(start.getTime() + entry.duration_minutes * 60000);
-          const colors = TAG_COLORS[entry.tag] || TAG_COLORS.other;
+          const ts = TAG_STYLE[entry.tag] || TAG_STYLE.other;
+          const fmt = d => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
           return (
-            <div key={entry.id} style={{ ...styles.entry, borderColor: colors.border }}>
-              <div style={styles.timeCol}>
-                <span style={styles.time}>{formatTime(end)}</span>
-                <span style={styles.timeSep}>|</span>
-                <span style={styles.time}>{formatTime(start)}</span>
+            <div key={entry.id} style={s.card}>
+              <div style={{ ...s.tagAccent, background: ts.dot }} />
+              <div style={s.timeCol}>
+                <span style={s.timeEnd}>{fmt(end)}</span>
+                <span style={s.timeSep}>↑</span>
+                <span style={s.timeStart}>{fmt(start)}</span>
               </div>
-              <div style={styles.middle}>
-                <span style={styles.activity}>{entry.activity}</span>
-                <div style={styles.meta}>
-                  <span style={{ ...styles.tag, background: colors.bg, color: colors.text }}>
+              <div style={s.middle}>
+                <span style={s.activity}>{entry.activity}</span>
+                <div style={s.meta}>
+                  <span style={{ ...s.tagBadge, background: ts.bg, color: ts.color }}>
                     {entry.tag}
                   </span>
-                  <span style={styles.dur}>{entry.duration_minutes}m</span>
+                  <span style={s.dur}>{entry.duration_minutes}m</span>
                 </div>
               </div>
-              <button style={styles.del} onClick={() => onDelete(entry.id)}>×</button>
+              <button style={s.del} onClick={() => onDelete(entry.id)}>×</button>
             </div>
           );
         })}
@@ -87,64 +84,63 @@ export default function Timeline({ entries, onDelete, budgets = {} }) {
   );
 }
 
-function formatTime(date) {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDuration(minutes) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-}
-
-const styles = {
-  wrapper: { display: 'flex', flexDirection: 'column', gap: '10px' },
-  statsRow: {
-    display: 'flex', background: '#111', border: '1px solid #1e1e1a',
-    borderRadius: '10px', overflow: 'hidden',
+const s = {
+  wrapper: { display: 'flex', flexDirection: 'column', gap: 10 },
+  statRow: { display: 'flex', gap: 8 },
+  statCard: {
+    flex: 1,
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius)',
+    padding: '12px 8px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+    boxShadow: 'var(--shadow)',
   },
-  stat: {
-    flex: 1, display: 'flex', flexDirection: 'column',
-    alignItems: 'center', padding: '12px 8px', gap: '2px',
+  statVal: {
+    fontSize: 17, fontWeight: 700, color: 'var(--ink)',
+    fontFamily: "'DM Mono', monospace",
   },
-  statVal: { fontSize: '16px', fontWeight: '700', color: '#e8e8e0' },
-  statLabel: { fontSize: '10px', color: '#444', fontWeight: '600', letterSpacing: '0.05em' },
-  statDivider: { width: '1px', background: '#1e1e1a', margin: '10px 0' },
-  budgetAlert: {
-    fontSize: '11px', fontWeight: '700', padding: '7px 12px',
-    borderRadius: '8px', border: '1px solid', letterSpacing: '0.03em',
+  statLabel: { fontSize: 10, color: 'var(--ink3)', fontWeight: 500, letterSpacing: '0.04em' },
+  list: { display: 'flex', flexDirection: 'column', gap: 6 },
+  card: {
+    background: 'var(--surface)',
+    borderRadius: 'var(--radius)',
+    padding: '12px 14px',
+    display: 'flex', alignItems: 'center', gap: 12,
+    boxShadow: 'var(--shadow)',
+    overflow: 'hidden',
+    position: 'relative',
   },
-  list: { display: 'flex', flexDirection: 'column', gap: '5px' },
-  entry: {
-    display: 'flex', alignItems: 'center', gap: '12px',
-    padding: '11px 13px', background: '#111',
-    border: '1px solid', borderRadius: '10px',
+  tagAccent: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    width: 3, borderRadius: '0 3px 3px 0',
   },
   timeCol: {
     display: 'flex', flexDirection: 'column', alignItems: 'center',
-    gap: '1px', minWidth: '44px', flexShrink: 0,
+    gap: 1, minWidth: 44, flexShrink: 0, paddingLeft: 4,
   },
-  time: { fontSize: '11px', fontWeight: '600', color: '#666' },
-  timeSep: { fontSize: '8px', color: '#333' },
-  middle: { flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 },
+  timeEnd: { fontSize: 11, fontWeight: 600, color: 'var(--ink)', fontFamily: "'DM Mono', monospace" },
+  timeSep: { fontSize: 8, color: 'var(--ink3)' },
+  timeStart: { fontSize: 11, fontWeight: 400, color: 'var(--ink3)', fontFamily: "'DM Mono', monospace" },
+  middle: { flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 },
   activity: {
-    fontSize: '14px', fontWeight: '600', color: '#e8e8e0',
+    fontSize: 14, fontWeight: 500, color: 'var(--ink)',
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   },
-  meta: { display: 'flex', alignItems: 'center', gap: '8px' },
-  tag: {
-    fontSize: '10px', fontWeight: '700', letterSpacing: '0.06em',
-    textTransform: 'uppercase', padding: '2px 7px', borderRadius: '4px',
+  meta: { display: 'flex', alignItems: 'center', gap: 8 },
+  tagBadge: {
+    fontSize: 10, fontWeight: 600, letterSpacing: '0.04em',
+    padding: '2px 7px', borderRadius: 100,
   },
-  dur: { fontSize: '11px', color: '#555', fontWeight: '500' },
+  dur: { fontSize: 11, color: 'var(--ink3)', fontFamily: "'DM Mono', monospace" },
   del: {
-    background: 'none', border: 'none', color: '#333', fontSize: '20px',
-    cursor: 'pointer', padding: '0 2px', flexShrink: 0, lineHeight: 1,
+    background: 'none', border: 'none', color: 'var(--border)',
+    fontSize: 18, padding: '0 2px', lineHeight: 1, flexShrink: 0,
+    transition: 'color 0.15s',
   },
   empty: {
-    fontSize: '13px', color: '#444', padding: '32px 0',
-    textAlign: 'center', lineHeight: 1.6,
+    textAlign: 'center', color: 'var(--ink3)', fontSize: 13,
+    padding: '48px 0', display: 'flex', flexDirection: 'column',
+    alignItems: 'center', gap: 8,
   },
+  emptyIcon: { fontSize: 28, opacity: 0.3 },
 };
