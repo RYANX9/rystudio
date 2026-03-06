@@ -1,292 +1,517 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
-function localNow() {
-  const now = new Date();
-  const tz  = -now.getTimezoneOffset();
-  const loc = new Date(now.getTime() + tz * 60000);
-  return {
-    local_date: loc.toISOString().slice(0, 10),
-    local_time: loc.toISOString().slice(11, 16),
-  };
+const GOAL   = 180;
+const TAG_C  = { study: '#2A7A50', Wasting: '#D13A3A', prayer: '#2B5BB8', food: '#C05D1A', sleep: '#6B3FC0', other: '#9CA3AF' };
+const TAG_BG = { study: '#EAF4EE', Wasting: '#FDEAEA', prayer: '#EAF0FC', food: '#FDF0E6', sleep: '#F0EBFC', other: '#F0EDE8' };
+const BLOCKS = [
+  { label: 'B1', from: 13 * 60 + 5,  to: 16 * 60     },
+  { label: 'B2', from: 17 * 60,       to: 18 * 60 + 20},
+  { label: 'B3', from: 22 * 60 + 30,  to: 25 * 60     },
+];
+
+function todayStr() {
+  const n = new Date();
+  return new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
-
-function fmtDate(str) {
-  return new Date(str + 'T12:00:00Z').toLocaleDateString('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long',
+function offsetDate(s, d) {
+  const x = new Date(s + 'T12:00:00Z');
+  x.setUTCDate(x.getUTCDate() + d);
+  return x.toISOString().slice(0, 10);
+}
+function fmtDur(m) {
+  if (!m) return '0m';
+  const h = Math.floor(m / 60), mm = m % 60;
+  if (!h) return `${mm}m`;
+  if (!mm) return `${h}h`;
+  return `${h}h ${mm}m`;
+}
+function dayNarrow(s) {
+  return new Date(s + 'T12:00:00Z').toLocaleDateString([], { weekday: 'narrow' });
+}
+function dateLong(s) {
+  return new Date(s + 'T12:00:00Z').toLocaleDateString('en-GB', {
+    weekday: 'short', day: 'numeric', month: 'short',
   });
 }
+function weekRange() {
+  const t = new Date(todayStr() + 'T12:00:00Z');
+  const d = t.getUTCDay();
+  const m = new Date(t);
+  m.setUTCDate(t.getUTCDate() - ((d + 6) % 7));
+  const e = new Date(m);
+  e.setUTCDate(m.getUTCDate() + 6);
+  return { from: m.toISOString().slice(0, 10), to: e.toISOString().slice(0, 10) };
+}
 
-export default function NowPanel() {
-  const [notes,   setNotes]   = useState([]);
-  const [body,    setBody]    = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
-  const [copied,  setCopied]  = useState(false);
-  const ref = useRef(null);
+export default function WeeklyView() {
+  const [week,     setWeek]     = useState([]);
+  const [streak,   setStreak]   = useState(null);
+  const [selected, setSelected] = useState(todayStr());
+  const [loading,  setLoading]  = useState(true);
+  const tz = -new Date().getTimezoneOffset();
 
-  const todayStr = localNow().local_date;
+  useEffect(() => { load(); }, []);
 
-  useEffect(() => {
-    fetch('/api/now-notes')
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setNotes(d); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  async function lock() {
-    const text = body.trim();
-    if (!text || saving) return;
-    setSaving(true);
+  async function load() {
+    setLoading(true);
+    const { from, to } = weekRange();
     try {
-      const { local_date, local_time } = localNow();
-      const res = await fetch('/api/now-notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: text, local_date, local_time }),
-      });
-      if (!res.ok) throw new Error();
-      const note = await res.json();
-      setNotes(prev => [note, ...prev]);
-      setBody('');
-      ref.current?.focus();
-    } catch {
-      alert('Failed to save note.');
-    } finally {
-      setSaving(false);
-    }
+      const [eRes, sRes] = await Promise.all([
+        fetch(`/api/entries?from=${from}&to=${to}&tz=${tz}`),
+        fetch(`/api/streak?tz=${tz}`),
+      ]);
+      const entries = await eRes.json();
+      const streakD = await sRes.json();
+      setStreak(streakD);
+      setWeek(buildWeek(from, to, Array.isArray(entries) ? entries : [], tz));
+    } catch { }
+    finally  { setLoading(false); }
   }
 
-  function onKeyDown(e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); lock(); }
-  }
+  if (loading) return <div style={s.loading}>Loading week…</div>;
 
-  function exportAll() {
-    const grouped = {};
-    [...notes].reverse().forEach(n => {
-      if (!grouped[n.local_date]) grouped[n.local_date] = [];
-      grouped[n.local_date].push(n);
-    });
-    const lines = ['NOW NOTES', '─'.repeat(30)];
-    Object.keys(grouped).sort((a, b) => b.localeCompare(a)).forEach(d => {
-      lines.push('', d === todayStr ? `Today — ${d}` : d);
-      grouped[d].forEach(n => lines.push(`[${n.local_time}]  ${n.body}`));
-    });
-    navigator.clipboard.writeText(lines.join('\n')).then(() => {
-      setCopied(true); setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {});
-  }
-
-  const grouped = {};
-  notes.forEach(n => { if (!grouped[n.local_date]) grouped[n.local_date] = []; grouped[n.local_date].push(n); });
-  const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+  const sel       = week.find(d => d.date === selected);
+  const today     = todayStr();
+  const weekStudy = week.reduce((a, d) => a + (d.tags.study || 0), 0);
+  const goalDays  = week.filter(d => (d.tags.study || 0) >= GOAL).length;
+  const maxStudy  = Math.max(...week.map(d => d.tags.study || 0), GOAL);
 
   return (
     <div style={s.wrap}>
 
-      {/* compose card */}
-      <div style={s.composeCard}>
-        <div style={s.composeTop}>
+      {/* ── Home Analysis hero card — exactly like reference right screen ── */}
+      <div style={s.heroCard}>
+        <div style={s.heroTop}>
           <div>
-            <div style={s.composeTitle}>Capture a thought</div>
-            <div style={s.composeSub}>Locked forever once saved</div>
+            <div style={s.heroTitle}>Home Analysis</div>
+            <div style={s.heroNum}>
+              <span style={s.heroNumBig}>{fmtDur(weekStudy)}</span>
+              <span style={s.heroNumUnit}>studied</span>
+            </div>
+            {streak?.streak > 0 && (
+              <div style={s.heroBadge}>
+                <span style={s.heroBadgeDot} />
+                <span style={s.heroBadgeTxt}>
+                  {streak.streak} day streak
+                </span>
+              </div>
+            )}
           </div>
-          {notes.length > 0 && (
-            <button style={s.exportBtn} onClick={exportAll}>
-              {copied ? '✓ Copied' : `Export (${notes.length})`}
-            </button>
-          )}
+          <div style={s.heroDropdown}>
+            Weekly
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
         </div>
 
-        <textarea
-          ref={ref}
-          style={s.textarea}
-          placeholder="An idea, a plan, something on your mind…"
-          value={body}
-          onChange={e => setBody(e.target.value)}
-          onKeyDown={onKeyDown}
-          rows={4}
-        />
-
-        <div style={s.composeFooter}>
-          <span style={s.hint}>Ctrl + Enter to lock</span>
-          <button
-            style={{
-              ...s.lockBtn,
-              background: body.trim() && !saving ? 'var(--orange)' : 'var(--ink4)',
-              cursor: body.trim() && !saving ? 'pointer' : 'not-allowed',
-            }}
-            onClick={lock}
-            disabled={!body.trim() || saving}
-          >
-            {saving ? 'Locking…' : 'Lock it'}
-          </button>
+        {/* bar chart — matches reference exactly: rounded bars, orange active, beige inactive */}
+        <div style={s.chartArea}>
+          {week.map(day => {
+            const m   = day.tags.study || 0;
+            const pct = Math.min(100, (m / maxStudy) * 100);
+            const isSel  = day.date === selected;
+            const isToday = day.date === today;
+            return (
+              <div key={day.date} style={s.barCol} onClick={() => setSelected(day.date)}>
+                <div style={s.barTrack}>
+                  <div style={{
+                    ...s.barFill,
+                    height: `${Math.max(pct, m > 0 ? 4 : 0)}%`,
+                    background: isSel
+                      ? (pct >= (GOAL / maxStudy * 100) ? 'var(--study-c)' : 'var(--orange)')
+                      : 'var(--bg2)',
+                  }}>
+                    {/* bolt icon inside active bar — exactly like reference */}
+                    {isSel && m > 0 && (
+                      <div style={s.barBolt}>
+                        <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
+                          <path d="M8 1.5L3 8h4.5L6 12.5l5-6.5H7L8 1.5z" fill="#fff"/>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <span style={{
+                  ...s.barLabel,
+                  color: isSel ? 'var(--orange)' : isToday ? 'var(--ink)' : 'var(--ink3)',
+                  fontWeight: isToday ? 700 : 400,
+                }}>
+                  {dayNarrow(day.date)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* notes feed */}
-      {loading ? (
-        <div style={s.loading}>Loading notes…</div>
-      ) : notes.length === 0 ? (
-        <div style={s.emptyCard}>
-          <div style={s.emptyTitle}>No locked thoughts yet</div>
-          <div style={s.emptySub}>Write something above and lock it.</div>
+      {/* stat 2×2 grid — smaller cards below chart */}
+      <div style={s.statGrid}>
+        <div style={s.statCard}>
+          <div style={{ ...s.statVal, color: 'var(--orange)' }}>{streak?.streak ?? 0}</div>
+          <div style={s.statLbl}>Day streak</div>
         </div>
-      ) : (
-        dates.map(date => (
-          <div key={date} style={s.group}>
-            <div style={s.dateSep}>
-              <div style={s.dateLine} />
-              <span style={s.dateLabel}>
-                {date === todayStr ? 'Today' : fmtDate(date)}
-              </span>
-              <div style={s.dateLine} />
-              <span style={s.dateBadge}>{grouped[date].length}</span>
+        <div style={s.statCard}>
+          <div style={s.statVal}>{streak?.longest_streak ?? 0}</div>
+          <div style={s.statLbl}>Longest</div>
+        </div>
+        <div style={s.statCard}>
+          <div style={{ ...s.statVal, color: 'var(--study-c)' }}>{goalDays}/7</div>
+          <div style={s.statLbl}>Goal days</div>
+        </div>
+        <div style={s.statCard}>
+          <div style={s.statVal}>{fmtDur(Math.round(weekStudy / 7))}</div>
+          <div style={s.statLbl}>Avg / day</div>
+        </div>
+      </div>
+
+      {/* per-device usage — exactly like reference bottom list */}
+      {sel && (
+        <div style={s.detailCard}>
+          <div style={s.detailHeader}>
+            <div>
+              <div style={s.detailTitle}>
+                {sel.date === today ? 'Today' : dateLong(sel.date)}
+              </div>
+              <div style={s.detailSub}>{fmtDur(sel.tags.study || 0)} studied</div>
             </div>
-            {grouped[date].map(note => (
-              <NoteCard key={note.id} note={note} />
-            ))}
+            <div style={s.detailPct}>
+              {Math.min(100, Math.round(((sel.tags.study || 0) / GOAL) * 100))}%
+            </div>
           </div>
-        ))
+
+          <div style={s.detailProgress}>
+            <div style={{
+              ...s.detailFill,
+              width: `${Math.min(100, ((sel.tags.study || 0) / GOAL) * 100)}%`,
+              background: (sel.tags.study || 0) >= GOAL ? 'var(--study-c)' : 'var(--orange)',
+            }} />
+          </div>
+
+          {/* per-device usage list */}
+          <div style={s.usageTitle}>
+            Per-tag usage ({Object.keys(sel.tags).length})
+          </div>
+
+          <div style={s.usageList}>
+            {Object.entries(sel.tags)
+              .sort((a, b) => b[1] - a[1])
+              .map(([tag, min]) => (
+                <div key={tag} style={s.usageRow}>
+                  <div style={{
+                    ...s.usageIcon,
+                    background: TAG_BG[tag] || '#eee',
+                    border: `1.5px solid ${TAG_C[tag] || '#9CA3AF'}22`,
+                  }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: TAG_C[tag] || '#9CA3AF' }} />
+                  </div>
+                  <div style={s.usageInfo}>
+                    <div style={s.usageName}>{tag}</div>
+                    <div style={s.usageCount}>
+                      {Object.values(
+                        Object.fromEntries(
+                          (sel.entries || [])
+                            .filter(e => e.tag === tag)
+                            .map(e => [e.id, e])
+                        )
+                      ).length || '—'} entries
+                    </div>
+                  </div>
+                  <div style={s.usageVal}>{fmtDur(min)}</div>
+                </div>
+              ))}
+          </div>
+
+          {/* study blocks */}
+          <div style={s.blockRow}>
+            {BLOCKS.map(b => {
+              const covered = (sel.studyEntries || []).reduce((acc, e) => {
+                const sm = localMin(e.started_at, tz);
+                const em = sm + e.duration_minutes;
+                return acc + Math.max(0, Math.min(em, b.to) - Math.max(sm, b.from));
+              }, 0) >= 20;
+              return (
+                <div key={b.label} style={{
+                  ...s.block,
+                  background: covered ? 'var(--study-bg)' : 'var(--surface2)',
+                  color:      covered ? 'var(--study-c)'  : 'var(--ink3)',
+                  border:     `1.5px solid ${covered ? 'rgba(42,122,80,0.2)' : 'var(--ink4)'}`,
+                }}>
+                  {covered && (
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none" style={{ marginRight: 4 }}>
+                      <path d="M1 4l2.5 2.5L9 1" stroke="var(--study-c)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                  {b.label}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-function NoteCard({ note }) {
-  return (
-    <div style={s.noteCard}>
-      <div style={s.noteTop}>
-        <span style={s.noteTime}>{note.local_time}</span>
-        <div style={s.lockedPill}>
-          <svg width="8" height="10" viewBox="0 0 8 10" fill="none">
-            <rect x="1" y="4" width="6" height="5" rx="1" stroke="var(--ink3)" strokeWidth="1.2"/>
-            <path d="M2.5 4V3a1.5 1.5 0 013 0v1" stroke="var(--ink3)" strokeWidth="1.2"/>
-          </svg>
-          <span style={s.lockedTxt}>locked</span>
-        </div>
-      </div>
-      <p style={s.noteBody}>{note.body}</p>
-    </div>
-  );
+function localMin(iso, tz) {
+  const d = new Date(new Date(iso).getTime() + tz * 60000);
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
+}
+
+function buildWeek(from, to, entries, tz) {
+  const days = [];
+  const cur  = new Date(from + 'T12:00:00Z');
+  const end  = new Date(to + 'T12:00:00Z');
+  while (cur <= end) { days.push(cur.toISOString().slice(0, 10)); cur.setUTCDate(cur.getUTCDate() + 1); }
+  const byDate = {}, studyByDate = {};
+  entries.forEach(e => {
+    const d = new Date(new Date(e.started_at).getTime() + tz * 60000).toISOString().slice(0, 10);
+    if (!byDate[d]) byDate[d] = {};
+    byDate[d][e.tag] = (byDate[d][e.tag] || 0) + e.duration_minutes;
+    if (e.tag === 'study') { if (!studyByDate[d]) studyByDate[d] = []; studyByDate[d].push(e); }
+  });
+  return days.map(date => ({ date, tags: byDate[date] || {}, studyEntries: studyByDate[date] || [], entries: entries.filter(e => {
+    const d = new Date(new Date(e.started_at).getTime() + tz * 60000).toISOString().slice(0, 10);
+    return d === date;
+  })}));
 }
 
 const s = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 12 },
+  loading: { textAlign: 'center', color: 'var(--ink3)', fontSize: 13, padding: '32px 0' },
 
-  composeCard: {
+  /* hero card — light surface like reference right screen */
+  heroCard: {
     background: 'var(--surface)',
     borderRadius: 'var(--r)',
-    padding: 20,
+    padding: '20px 20px 16px',
     boxShadow: 'var(--sh)',
-    display: 'flex', flexDirection: 'column', gap: 14,
   },
-  composeTop: {
+  heroTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: 800,
+    color: 'var(--ink)',
+    letterSpacing: '-0.03em',
+    lineHeight: 1.1,
+    marginBottom: 6,
+  },
+  heroNum: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 4,
+    marginBottom: 8,
+  },
+  heroNumBig: {
+    fontSize: 44,
+    fontWeight: 800,
+    color: 'var(--ink)',
+    fontFamily: "'DM Mono', monospace",
+    letterSpacing: '-0.04em',
+    lineHeight: 1,
+  },
+  heroNumUnit: {
+    fontSize: 13,
+    color: 'var(--ink3)',
+    fontWeight: 400,
+  },
+  heroBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    background: 'var(--dark)',
+    borderRadius: 'var(--r-pill)',
+    padding: '4px 10px',
+  },
+  heroBadgeDot: {
+    width: 6, height: 6,
+    borderRadius: '50%',
+    background: 'var(--orange)',
+    display: 'block',
+    flexShrink: 0,
+  },
+  heroBadgeTxt: {
+    fontSize: 11,
+    color: '#fff',
+    fontWeight: 600,
+    letterSpacing: '0.02em',
+  },
+  heroDropdown: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    background: 'var(--dark)',
+    color: '#fff',
+    borderRadius: 'var(--r-pill)',
+    padding: '8px 14px',
+    fontSize: 12,
+    fontWeight: 600,
+    flexShrink: 0,
+  },
+
+  /* bar chart */
+  chartArea: {
+    display: 'flex',
+    gap: 6,
+    height: 100,
+    alignItems: 'flex-end',
+  },
+  barCol: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 6,
+    height: '100%',
+    cursor: 'pointer',
+  },
+  barTrack: {
+    flex: 1,
+    width: '100%',
+    background: 'var(--surface2)',
+    borderRadius: 8,
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'flex-end',
+  },
+  barFill: {
+    width: '100%',
+    borderRadius: 8,
+    transition: 'height 0.4s ease, background 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  barBolt: {
+    position: 'absolute',
+    bottom: 6,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  barLabel: {
+    fontSize: 10,
+    transition: 'color 0.15s',
+    fontFamily: "'DM Mono', monospace",
+  },
+
+  /* stat grid */
+  statGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 10,
+  },
+  statCard: {
+    background: 'var(--surface)',
+    borderRadius: 'var(--r)',
+    padding: '16px 18px',
+    boxShadow: 'var(--sh)',
+  },
+  statVal: {
+    fontSize: 28,
+    fontWeight: 800,
+    color: 'var(--ink)',
+    fontFamily: "'DM Mono', monospace",
+    letterSpacing: '-0.03em',
+    lineHeight: 1,
+    marginBottom: 4,
+  },
+  statLbl: {
+    fontSize: 11,
+    color: 'var(--ink3)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    fontWeight: 500,
+  },
+
+  /* detail card — per-device usage like reference */
+  detailCard: {
+    background: 'var(--surface)',
+    borderRadius: 'var(--r)',
+    padding: '18px 20px',
+    boxShadow: 'var(--sh)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 14,
+  },
+  detailHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  composeTitle: {
+  detailTitle: {
     fontSize: 18,
     fontWeight: 800,
     color: 'var(--ink)',
     letterSpacing: '-0.02em',
   },
-  composeSub: { fontSize: 12, color: 'var(--ink3)', marginTop: 3 },
-  exportBtn: {
-    background: 'var(--surface2)',
-    border: '1px solid var(--ink4)',
-    color: 'var(--ink2)',
+  detailSub: { fontSize: 12, color: 'var(--ink3)', marginTop: 3 },
+  detailPct: {
+    fontSize: 28,
+    fontWeight: 800,
+    color: 'var(--ink)',
+    fontFamily: "'DM Mono', monospace",
+    letterSpacing: '-0.03em',
+  },
+  detailProgress: {
+    height: 5,
+    background: 'var(--bg2)',
     borderRadius: 'var(--r-pill)',
-    padding: '6px 14px',
-    fontSize: 12, fontWeight: 500,
+    overflow: 'hidden',
+  },
+  detailFill: {
+    height: '100%',
+    borderRadius: 'var(--r-pill)',
+    transition: 'width 0.5s ease',
+  },
+
+  usageTitle: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--ink2)',
+  },
+  usageList: { display: 'flex', flexDirection: 'column', gap: 12 },
+  usageRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+  usageIcon: {
+    width: 36, height: 36,
+    borderRadius: 10,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
-  textarea: {
-    background: 'var(--surface2)',
-    border: '1.5px solid var(--ink4)',
-    borderRadius: 'var(--r-sm)',
+  usageInfo: { flex: 1 },
+  usageName: { fontSize: 14, fontWeight: 600, color: 'var(--ink)' },
+  usageCount: { fontSize: 11, color: 'var(--ink3)', marginTop: 2 },
+  usageVal: {
+    fontSize: 16,
+    fontWeight: 700,
     color: 'var(--ink)',
-    padding: '13px 16px',
-    fontSize: 15,
-    lineHeight: 1.65,
-    resize: 'vertical',
-    width: '100%',
-    minHeight: 100,
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "'DM Mono', monospace",
+    letterSpacing: '-0.02em',
   },
-  composeFooter: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-  },
-  hint: { fontSize: 11, color: 'var(--ink3)' },
-  lockBtn: {
-    color: '#fff',
-    border: 'none',
+
+  blockRow: { display: 'flex', gap: 8 },
+  block: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '9px 0',
     borderRadius: 'var(--r-sm)',
-    padding: '11px 22px',
-    fontSize: 14, fontWeight: 700,
-    letterSpacing: '-0.01em',
-    transition: 'background 0.15s',
-  },
-
-  loading: { textAlign: 'center', color: 'var(--ink3)', fontSize: 13, padding: '24px 0' },
-
-  emptyCard: {
-    background: 'var(--surface)',
-    borderRadius: 'var(--r)',
-    padding: '40px 24px',
-    textAlign: 'center',
-    boxShadow: 'var(--sh)',
-  },
-  emptyTitle: { fontSize: 16, fontWeight: 700, color: 'var(--ink2)', marginBottom: 6 },
-  emptySub: { fontSize: 13, color: 'var(--ink3)' },
-
-  group: { display: 'flex', flexDirection: 'column', gap: 8 },
-  dateSep: {
-    display: 'flex', alignItems: 'center', gap: 10,
-    padding: '2px 0',
-  },
-  dateLine: { flex: 1, height: 1, background: 'var(--ink4)' },
-  dateLabel: {
-    fontSize: 11, fontWeight: 700, color: 'var(--ink3)',
-    letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap',
-  },
-  dateBadge: {
-    background: 'var(--dark)',
-    color: '#fff',
-    fontSize: 10, fontWeight: 700,
-    borderRadius: 'var(--r-pill)',
-    padding: '2px 8px',
-  },
-
-  noteCard: {
-    background: 'var(--surface)',
-    borderRadius: 'var(--r)',
-    padding: '16px 18px',
-    boxShadow: 'var(--sh)',
-    display: 'flex', flexDirection: 'column', gap: 10,
-  },
-  noteTop: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-  },
-  noteTime: {
-    fontSize: 12, color: 'var(--ink3)',
-    fontFamily: "'DM Mono', monospace", fontWeight: 500,
-  },
-  lockedPill: {
-    display: 'flex', alignItems: 'center', gap: 5,
-    background: 'var(--surface2)',
-    border: '1px solid var(--ink4)',
-    borderRadius: 'var(--r-pill)',
-    padding: '3px 10px',
-  },
-  lockedTxt: {
-    fontSize: 10, fontWeight: 600, color: 'var(--ink3)',
-    letterSpacing: '0.05em', textTransform: 'uppercase',
-  },
-  noteBody: {
-    fontSize: 15, color: 'var(--ink)', lineHeight: 1.65,
-    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: '0.02em',
   },
 };
