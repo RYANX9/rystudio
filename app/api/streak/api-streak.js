@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import sql from '@/lib/db';
 
-const GOAL_MINUTES = 180; // 3h
+const GOAL_MINUTES = 180;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -27,41 +27,31 @@ export async function GET(request) {
 
     const todayMinutes = byDate[todayStr] || 0;
 
+    // current streak
     let streak = 0;
-    let longestStreak = 0;
-    let tempStreak = 0;
-
     const cursor = new Date(todayStr + 'T12:00:00Z');
     if (todayMinutes < GOAL_MINUTES) cursor.setUTCDate(cursor.getUTCDate() - 1);
-
-    // current streak
     for (let i = 0; i < 180; i++) {
       const d = cursor.toISOString().slice(0, 10);
       if ((byDate[d] || 0) >= GOAL_MINUTES) {
         streak++;
         cursor.setUTCDate(cursor.getUTCDate() - 1);
-      } else {
-        break;
-      }
+      } else break;
     }
 
-    // longest streak from all data
-    const sortedDates = Object.keys(byDate).sort();
-    for (const d of sortedDates) {
-      if ((byDate[d] || 0) >= GOAL_MINUTES) {
-        tempStreak++;
-        if (tempStreak > longestStreak) longestStreak = tempStreak;
-      } else {
-        tempStreak = 0;
-      }
+    // longest streak
+    const sorted = Object.keys(byDate).sort();
+    let longest = 0, temp = 0;
+    for (const d of sorted) {
+      if ((byDate[d] || 0) >= GOAL_MINUTES) { temp++; if (temp > longest) longest = temp; }
+      else temp = 0;
     }
 
-    // total goal days
     const totalGoalDays = Object.values(byDate).filter((m) => m >= GOAL_MINUTES).length;
 
     return NextResponse.json({
       streak,
-      longest_streak: longestStreak,
+      longest_streak: longest,
       total_goal_days: totalGoalDays,
       today_minutes: todayMinutes,
       goal: GOAL_MINUTES,
@@ -72,8 +62,7 @@ export async function GET(request) {
 }
 
 function localDateStr(date, tzOffsetMinutes) {
-  return new Date(date.getTime() + tzOffsetMinutes * 60000)
-    .toISOString().slice(0, 10);
+  return new Date(date.getTime() + tzOffsetMinutes * 60000).toISOString().slice(0, 10);
 }
 
 function normalizeDate(val) {
