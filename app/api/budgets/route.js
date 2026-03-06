@@ -1,52 +1,41 @@
 import { NextResponse } from 'next/server';
 import sql from '@/lib/db';
 
-export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
-  const tz = parseInt(searchParams.get('tz') || '0', 10);
-  const format = searchParams.get('format') || 'csv';
+const DEFAULTS = {
+  study:   180,
+  Wasting: 30,
+  prayer:  60,
+  food:    60,
+  sleep:   480,
+  other:   120,
+};
 
-  if (!from || !to) {
-    return NextResponse.json({ error: 'from and to required' }, { status: 400 });
-  }
-
-  const tzHours = tz / 60.0;
-
+export async function GET() {
   try {
-    const rows = await sql`
-      SELECT
-        id,
-        activity,
-        tag,
-        started_at,
-        duration_minutes,
-        DATE(started_at + make_interval(hours => ${tzHours})) AS local_date,
-        (started_at + make_interval(hours => ${tzHours}))::time AS local_time
-      FROM entries
-      WHERE DATE(started_at + make_interval(hours => ${tzHours})) BETWEEN ${from}::date AND ${to}::date
-      ORDER BY started_at ASC
-    `;
-
-    if (format === 'json') {
-      return NextResponse.json(rows);
+    const rows = await sql`SELECT * FROM tag_budgets ORDER BY tag`;
+    if (rows.length === 0) {
+      const defaults = Object.entries(DEFAULTS).map(([tag, daily_minutes]) => ({ tag, daily_minutes }));
+      return NextResponse.json(defaults);
     }
+    return NextResponse.json(rows);
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
 
-    const header = 'id,date,time,activity,tag,duration_minutes\n';
-    const body = rows.map((r) => {
-      const date = String(r.local_date).slice(0, 10);
-      const time = String(r.local_time).slice(0, 5);
-      const activity = `"${r.activity.replace(/"/g, '""')}"`;
-      return `${r.id},${date},${time},${activity},${r.tag},${r.duration_minutes}`;
-    }).join('\n');
-
-    return new NextResponse(header + body, {
-      headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="tracker-${from}-${to}.csv"`,
-      },
-    });
+export async function POST(request) {
+  try {
+    const { tag, daily_minutes } = await request.json();
+    if (!tag || !daily_minutes) {
+      return NextResponse.json({ error: 'tag and daily_minutes required' }, { status: 400 });
+    }
+    const [row] = await sql`
+      INSERT INTO tag_budgets (tag, daily_minutes)
+      VALUES (${tag}, ${daily_minutes})
+      ON CONFLICT (tag) DO UPDATE SET daily_minutes = EXCLUDED.daily_minutes
+      RETURNING *
+    `;
+    return NextResponse.json(row);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
