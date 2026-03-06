@@ -1,409 +1,348 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-const TAG_COLORS = {
-  study:   '#22c55e',
-  Wasting: '#ef4444',
-  prayer:  '#60a5fa',
-  food:    '#f97316',
-  sleep:   '#a78bfa',
-  other:   '#6b7280',
-};
+const RANGES = [7, 14, 30];
+const GOAL   = 180;
 
-const GOAL = 180;
+const TAG_C  = { study:'#2A7A50', Wasting:'#D13A3A', prayer:'#2B5BB8', food:'#C05D1A', sleep:'#6B3FC0', other:'#9CA3AF' };
+const TAG_BG = { study:'#EAF4EE', Wasting:'#FDEAEA', prayer:'#EAF0FC', food:'#FDF0E6', sleep:'#F0EBFC', other:'#F0EDE8' };
+
+function todayStr() {
+  const n = new Date();
+  return new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+function offsetDate(s, d) {
+  const x = new Date(s + 'T12:00:00Z');
+  x.setUTCDate(x.getUTCDate() + d);
+  return x.toISOString().slice(0, 10);
+}
+function fmtDur(m) {
+  if (!m) return '0m';
+  const h = Math.floor(m / 60), mm = m % 60;
+  if (!h) return `${mm}m`;
+  if (!mm) return `${h}h`;
+  return `${h}h ${mm}m`;
+}
 
 export default function StatsView() {
-  const [data, setData] = useState([]);
-  const [streak, setStreak] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [range, setRange] = useState('7');
+  const [range, setRange]     = useState(7);
+  const [stats, setStats]     = useState([]);
   const [budgets, setBudgets] = useState({});
+  const [loading, setLoading] = useState(true);
   const [editBudget, setEditBudget] = useState(null);
-  const [budgetInput, setBudgetInput] = useState('');
+  const [budgetVal, setBudgetVal]   = useState('');
+  const tz = -new Date().getTimezoneOffset();
 
-  useEffect(() => {
-    load();
-  }, [range]);
+  useEffect(() => { load(range); }, [range]);
 
-  useEffect(() => {
-    fetch('/api/budgets')
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) {
-          const map = {};
-          d.forEach((b) => { map[b.tag] = b.daily_limit_min; });
-          setBudgets(map);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  async function load() {
+  async function load(r) {
     setLoading(true);
-    const tz = -new Date().getTimezoneOffset();
-    const to = todayStr();
-    const from = offsetDate(to, -parseInt(range) + 1);
-
+    const from = offsetDate(todayStr(), -(r - 1));
+    const to   = todayStr();
     try {
-      const [statsRes, streakRes] = await Promise.all([
+      const [sRes, bRes] = await Promise.all([
         fetch(`/api/stats?from=${from}&to=${to}&tz=${tz}`),
-        fetch(`/api/streak?tz=${tz}`),
+        fetch('/api/budgets'),
       ]);
-      const stats = await statsRes.json();
-      const streakData = await streakRes.json();
-      setData(Array.isArray(stats) ? stats : []);
-      setStreak(streakData);
-    } catch (_) {
-      setData([]);
-    } finally {
-      setLoading(false);
-    }
+      const sData = await sRes.json();
+      const bData = await bRes.json();
+      setStats(Array.isArray(sData) ? sData : []);
+      if (Array.isArray(bData)) {
+        const map = {};
+        bData.forEach(b => { map[b.tag] = b.daily_minutes; });
+        setBudgets(map);
+      }
+    } catch { } finally { setLoading(false); }
   }
 
   async function saveBudget(tag) {
-    const min = parseInt(budgetInput);
-    if (!min || min < 1) return;
+    const mins = parseInt(budgetVal);
+    if (!mins || mins < 1) return;
     await fetch('/api/budgets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tag, daily_limit_min: min }),
+      body: JSON.stringify({ tag, daily_minutes: mins }),
     });
-    setBudgets((prev) => ({ ...prev, [tag]: min }));
+    setBudgets(prev => ({ ...prev, [tag]: mins }));
     setEditBudget(null);
-    setBudgetInput('');
   }
 
-  if (loading) return <div style={s.loading}>loading stats...</div>;
-
-  // aggregate by date
-  const byDate = {};
-  for (const row of data) {
-    const d = String(row.date).slice(0, 10);
-    if (!byDate[d]) byDate[d] = {};
-    byDate[d][row.tag] = (byDate[d][row.tag] || 0) + Number(row.total_minutes);
+  async function exportCSV() {
+    const from = offsetDate(todayStr(), -(range - 1));
+    const url  = `/api/export?from=${from}&to=${todayStr()}&tz=${tz}&format=csv`;
+    const res  = await fetch(url);
+    const blob = await res.blob();
+    const a    = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `chronicle-${from}-${todayStr()}.csv`;
+    a.click();
   }
 
-  const dates = Object.keys(byDate).sort();
-
-  // tag totals over range
+  // derived
   const tagTotals = {};
-  for (const row of data) {
-    tagTotals[row.tag] = (tagTotals[row.tag] || 0) + Number(row.total_minutes);
-  }
+  const dailyStudy = {};
+  stats.forEach(r => {
+    const tag = r.tag, m = Number(r.total_minutes), d = String(r.date).slice(0, 10);
+    tagTotals[tag] = (tagTotals[tag] || 0) + m;
+    if (tag === 'study') dailyStudy[d] = (dailyStudy[d] || 0) + m;
+  });
 
-  const totalStudy = tagTotals['study'] || 0;
-  const days = dates.length || 1;
-  const avgStudyPerDay = Math.round(totalStudy / days);
-  const goalDays = dates.filter((d) => (byDate[d]['study'] || 0) >= GOAL).length;
+  const studyTotal  = tagTotals.study || 0;
+  const avgStudy    = Math.round(studyTotal / range);
+  const goalDays    = Object.values(dailyStudy).filter(m => m >= GOAL).length;
+  const bestDay     = Object.entries(dailyStudy).sort((a, b) => b[1] - a[1])[0];
+  const sortedTags  = Object.entries(tagTotals).sort((a, b) => b[1] - a[1]);
+  const maxTagMin   = sortedTags[0]?.[1] || 1;
 
-  // best study day
-  const bestDay = dates.reduce((best, d) => {
-    const m = byDate[d]['study'] || 0;
-    return m > (byDate[best]?.['study'] || 0) ? d : best;
-  }, dates[0]);
-
-  const maxBarMin = Math.max(...dates.map((d) => Object.values(byDate[d]).reduce((s, v) => s + v, 0)), 1);
+  // daily study bars (last range days)
+  const days = [];
+  for (let i = range - 1; i >= 0; i--) days.push(offsetDate(todayStr(), -i));
 
   return (
-    <div style={s.wrapper}>
+    <div style={s.wrap}>
 
       {/* range selector */}
       <div style={s.rangeRow}>
-        {['7', '14', '30'].map((r) => (
+        {RANGES.map(r => (
           <button
             key={r}
-            style={{ ...s.rangeBtn, ...(range === r ? s.rangeBtnActive : {}) }}
+            style={{
+              ...s.rangeBtn,
+              background: range === r ? 'var(--dark)' : 'var(--surface)',
+              color: range === r ? '#fff' : 'var(--ink2)',
+              border: `1px solid ${range === r ? 'var(--dark)' : 'var(--ink4)'}`,
+            }}
             onClick={() => setRange(r)}
           >
             {r}d
           </button>
         ))}
+        <button style={s.exportBtn} onClick={exportCSV}>↓ CSV</button>
       </div>
 
-      {/* top stats */}
-      <div style={s.statCards}>
-        <div style={s.card}>
-          <span style={{ ...s.cardVal, color: '#22c55e' }}>{fmtDur(avgStudyPerDay)}</span>
-          <span style={s.cardLabel}>avg/day</span>
-        </div>
-        <div style={s.card}>
-          <span style={s.cardVal}>{goalDays}/{days}</span>
-          <span style={s.cardLabel}>goal days</span>
-        </div>
-        <div style={s.card}>
-          <span style={{ ...s.cardVal, color: '#f59e0b' }}>{streak?.streak ?? 0}d</span>
-          <span style={s.cardLabel}>streak</span>
-        </div>
-        <div style={s.card}>
-          <span style={{ ...s.cardVal, color: '#a78bfa' }}>{streak?.longest_streak ?? 0}d</span>
-          <span style={s.cardLabel}>best streak</span>
-        </div>
-      </div>
-
-      {/* stacked daily bars */}
-      <div style={s.section}>
-        <div style={s.sectionLabel}>daily breakdown</div>
-        <div style={s.barsWrap}>
-          {dates.map((date) => {
-            const dayData = byDate[date];
-            const totalMin = Object.values(dayData).reduce((s, v) => s + v, 0);
-            const studyMin = dayData['study'] || 0;
-            const pct = (totalMin / maxBarMin) * 100;
-            const goalHit = studyMin >= GOAL;
-            const isToday = date === todayStr();
-
-            return (
-              <div key={date} style={s.barCol}>
-                <div style={s.barTrack}>
-                  <div style={{ ...s.barFill, height: `${pct}%` }}>
-                    {Object.entries(dayData)
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([tag, min]) => (
-                        <div
-                          key={tag}
-                          style={{
-                            width: '100%',
-                            height: `${(min / totalMin) * 100}%`,
-                            background: TAG_COLORS[tag] || '#555',
-                            opacity: 0.8,
-                          }}
-                        />
-                      ))}
+      {loading ? (
+        <div style={s.loading}>Loading…</div>
+      ) : (
+        <>
+          {/* ── hero stat card ── */}
+          <div style={s.heroCard}>
+            <div style={s.heroDark}>
+              <div style={s.heroNum}>{fmtDur(studyTotal)}</div>
+              <div style={s.heroSub}>studied in {range} days</div>
+            </div>
+            <div style={s.heroLight}>
+              <div style={s.heroMini}>
+                <div style={s.heroMiniVal}>{fmtDur(avgStudy)}</div>
+                <div style={s.heroMiniLbl}>avg / day</div>
+              </div>
+              <div style={s.heroDivider} />
+              <div style={s.heroMini}>
+                <div style={{ ...s.heroMiniVal, color: 'var(--study-c)' }}>{goalDays}</div>
+                <div style={s.heroMiniLbl}>goal days</div>
+              </div>
+              {bestDay && (
+                <>
+                  <div style={s.heroDivider} />
+                  <div style={s.heroMini}>
+                    <div style={s.heroMiniVal}>{fmtDur(bestDay[1])}</div>
+                    <div style={s.heroMiniLbl}>best day</div>
                   </div>
-                  {goalHit && <div style={s.goalDot} />}
-                </div>
-                <span style={{ ...s.barLabel, fontWeight: isToday ? '700' : '400', color: isToday ? '#e8e8e0' : '#444' }}>
-                  {dayShort(date)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                </>
+              )}
+            </div>
+          </div>
 
-      {/* tag totals */}
-      <div style={s.section}>
-        <div style={s.sectionLabel}>tag totals — {range} days</div>
-        {Object.entries(tagTotals)
-          .sort((a, b) => b[1] - a[1])
-          .map(([tag, min]) => {
-            const maxMin = Math.max(...Object.values(tagTotals));
-            const pct = (min / maxMin) * 100;
-            const budget = budgets[tag];
-            const perDay = Math.round(min / days);
-            const overBudget = budget && perDay > budget;
-            return (
-              <div key={tag} style={s.tagRow}>
-                <div style={s.tagRowLeft}>
-                  <div style={{ ...s.dot, background: TAG_COLORS[tag] || '#555' }} />
+          {/* ── daily study bars ── */}
+          <div style={s.barsCard}>
+            <div style={s.cardTitle}>Daily study — {range}d</div>
+            <div style={s.bars}>
+              {days.map(d => {
+                const m   = dailyStudy[d] || 0;
+                const pct = Math.min(100, Math.round((m / GOAL) * 100));
+                const isT = d === todayStr();
+                return (
+                  <div key={d} style={s.barCol} title={`${d}: ${fmtDur(m)}`}>
+                    <div style={s.barTrack}>
+                      <div style={{
+                        ...s.barFill,
+                        height: `${Math.max(pct, m > 0 ? 2 : 0)}%`,
+                        background: pct >= 100 ? 'var(--study-c)' : pct >= 50 ? 'var(--orange)' : pct > 0 ? '#E8A22A' : 'transparent',
+                      }} />
+                    </div>
+                    {isT && <div style={s.barDot} />}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── tag breakdown ── */}
+          <div style={s.tagsCard}>
+            <div style={s.cardTitle}>By tag</div>
+            {sortedTags.length === 0 && <div style={s.none}>No data</div>}
+            {sortedTags.map(([tag, total]) => {
+              const daily  = Math.round(total / range);
+              const budget = budgets[tag];
+              const over   = budget && daily > budget;
+              return (
+                <div key={tag} style={s.tagRow}>
+                  <div style={{ ...s.tagDot, background: TAG_C[tag] || '#9CA3AF' }} />
                   <span style={s.tagName}>{tag}</span>
+                  <div style={s.tagBarWrap}>
+                    <div style={{
+                      ...s.tagBar,
+                      width: `${(total / maxTagMin) * 100}%`,
+                      background: TAG_BG[tag] || '#eee',
+                      borderLeft: `3px solid ${TAG_C[tag] || '#9CA3AF'}`,
+                    }} />
+                  </div>
+                  <div style={s.tagRight}>
+                    <span style={s.tagTotal}>{fmtDur(total)}</span>
+                    {budget && (
+                      <span style={{
+                        ...s.tagBudget,
+                        color: over ? 'var(--waste-c)' : 'var(--ink3)',
+                      }}>
+                        {over ? '↑' : ''} {fmtDur(daily)}/d · lim {fmtDur(budget)}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    style={s.editBudgetBtn}
+                    onClick={() => { setEditBudget(tag); setBudgetVal(String(budget || '')); }}
+                    title="Set daily budget"
+                  >
+                    ⚙
+                  </button>
                 </div>
-                <div style={s.tagBarWrap}>
-                  <div style={{
-                    ...s.tagBarFill,
-                    width: `${pct}%`,
-                    background: TAG_COLORS[tag] || '#555',
-                    opacity: overBudget ? 1 : 0.4,
-                  }} />
-                </div>
-                <div style={s.tagRight}>
-                  <span style={{ color: overBudget ? '#ef4444' : '#888', fontSize: '11px', fontWeight: '600' }}>
-                    {fmtDur(min)}
-                  </span>
-                  {budget && (
-                    <span style={{ fontSize: '10px', color: overBudget ? '#ef4444' : '#444' }}>
-                      {fmtDur(perDay)}/d lim:{fmtDur(budget)}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-      </div>
+              );
+            })}
 
-      {/* budget editor */}
-      <div style={s.section}>
-        <div style={s.sectionLabel}>daily limits</div>
-        {['study', 'Wasting', 'sleep', 'food', 'prayer', 'other'].map((tag) => (
-          <div key={tag} style={s.budgetRow}>
-            <div style={{ ...s.dot, background: TAG_COLORS[tag] || '#555', flexShrink: 0 }} />
-            <span style={s.tagName}>{tag}</span>
-            {editBudget === tag ? (
-              <>
+            {/* inline budget editor */}
+            {editBudget && (
+              <div style={s.budgetEditor}>
+                <span style={s.budgetTag}>{editBudget}</span>
                 <input
                   style={s.budgetInput}
-                  type="number"
-                  placeholder="min"
-                  value={budgetInput}
-                  onChange={(e) => setBudgetInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && saveBudget(tag)}
+                  type="number" placeholder="min/day"
+                  value={budgetVal}
+                  onChange={e => setBudgetVal(e.target.value)}
                   autoFocus
                 />
-                <button style={s.budgetSave} onClick={() => saveBudget(tag)}>save</button>
-                <button style={s.budgetCancel} onClick={() => setEditBudget(null)}>×</button>
-              </>
-            ) : (
-              <>
-                <span style={s.budgetVal}>
-                  {budgets[tag] ? fmtDur(budgets[tag]) : '—'}
-                </span>
-                <button style={s.editBtn} onClick={() => { setEditBudget(tag); setBudgetInput(budgets[tag] || ''); }}>
-                  edit
-                </button>
-              </>
+                <button style={s.budgetSave} onClick={() => saveBudget(editBudget)}>Save</button>
+                <button style={s.budgetCancel} onClick={() => setEditBudget(null)}>✕</button>
+              </div>
             )}
           </div>
-        ))}
-      </div>
-
-      {/* best day callout */}
-      {bestDay && (
-        <div style={s.bestDay}>
-          <span style={s.bestDayLabel}>best study day</span>
-          <span style={s.bestDayVal}>{formatDate(bestDay)}</span>
-          <span style={s.bestDayMin}>{fmtDur(byDate[bestDay]?.['study'] || 0)}</span>
-        </div>
+        </>
       )}
-
-      {/* export range */}
-      <button style={s.exportBtn} onClick={() => {
-        const tz = -new Date().getTimezoneOffset();
-        const to = todayStr();
-        const from = offsetDate(to, -parseInt(range) + 1);
-        window.open(`/api/export?from=${from}&to=${to}&tz=${tz}&format=csv`, '_blank');
-      }}>
-        export {range}-day CSV
-      </button>
     </div>
   );
 }
 
-function todayStr() {
-  const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-}
-
-function offsetDate(str, days) {
-  const d = new Date(str + 'T12:00:00Z');
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function dayShort(str) {
-  return new Date(str + 'T12:00:00Z').toLocaleDateString([], { weekday: 'narrow' });
-}
-
-function formatDate(str) {
-  return new Date(str + 'T12:00:00Z').toLocaleDateString([], {
-    weekday: 'short', month: 'short', day: 'numeric',
-  });
-}
-
-function fmtDur(min) {
-  if (!min) return '0m';
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-}
-
 const s = {
-  wrapper: { display: 'flex', flexDirection: 'column', gap: '14px' },
-  loading: { fontSize: '13px', color: '#555', textAlign: 'center', padding: '32px 0' },
-  rangeRow: { display: 'flex', gap: '6px' },
+  wrap: { display:'flex', flexDirection:'column', gap:12 },
+  loading: { textAlign:'center', color:'var(--ink3)', fontSize:13, padding:'32px 0' },
+
+  rangeRow: { display:'flex', gap:8 },
   rangeBtn: {
-    flex: 1, background: '#111', border: '1px solid #222', color: '#555',
-    padding: '8px', fontSize: '12px', fontWeight: '700',
-    fontFamily: "'Cairo', sans-serif", cursor: 'pointer', borderRadius: '8px',
+    padding:'8px 18px', borderRadius:'var(--r-pill)',
+    fontSize:13, fontWeight:600,
+    transition:'all 0.15s',
+    boxShadow:'var(--sh)',
   },
-  rangeBtnActive: { background: '#1e1e1a', borderColor: '#333', color: '#e8e8e0' },
-  statCards: { display: 'flex', gap: '6px' },
-  card: {
-    flex: 1, background: '#111', border: '1px solid #1e1e1a', borderRadius: '10px',
-    padding: '12px 6px', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', gap: '3px',
+  exportBtn: {
+    marginLeft:'auto',
+    background:'var(--surface)',
+    border:'1px solid var(--ink4)',
+    color:'var(--ink2)',
+    borderRadius:'var(--r-pill)',
+    padding:'8px 14px',
+    fontSize:12, fontWeight:600,
+    boxShadow:'var(--sh)',
   },
-  cardVal: { fontSize: '16px', fontWeight: '700', color: '#e8e8e0' },
-  cardLabel: { fontSize: '9px', color: '#444', fontWeight: '600', letterSpacing: '0.06em', textAlign: 'center' },
-  section: {
-    background: '#111', border: '1px solid #1e1e1a', borderRadius: '10px',
-    padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px',
+
+  heroCard: {
+    background:'var(--surface)', borderRadius:'var(--r)',
+    overflow:'hidden', boxShadow:'var(--sh)',
   },
-  sectionLabel: {
-    fontSize: '10px', fontWeight: '700', color: '#444',
-    letterSpacing: '0.1em', textTransform: 'uppercase',
+  heroDark: {
+    background:'var(--dark)', padding:'18px 20px',
   },
-  barsWrap: {
-    display: 'flex', gap: '4px', alignItems: 'flex-end',
-    height: '80px',
+  heroNum: {
+    fontSize:32, fontWeight:800, color:'#fff',
+    fontFamily:"'DM Mono',monospace", letterSpacing:'-0.03em', lineHeight:1,
   },
+  heroSub: { fontSize:12, color:'rgba(255,255,255,0.4)', marginTop:4 },
+  heroLight: {
+    display:'flex', padding:'14px 20px', gap:0,
+  },
+  heroMini: { flex:1, display:'flex', flexDirection:'column', gap:3 },
+  heroMiniVal: {
+    fontSize:18, fontWeight:700, color:'var(--ink)',
+    fontFamily:"'DM Mono',monospace", letterSpacing:'-0.02em',
+  },
+  heroMiniLbl: {
+    fontSize:10, color:'var(--ink3)', textTransform:'uppercase', letterSpacing:'0.05em',
+  },
+  heroDivider: { width:1, background:'var(--ink4)', margin:'0 16px', alignSelf:'stretch' },
+
+  barsCard: {
+    background:'var(--surface)', borderRadius:'var(--r)',
+    padding:'16px 16px 14px', boxShadow:'var(--sh)',
+  },
+  cardTitle: { fontSize:13, fontWeight:600, color:'var(--ink2)', marginBottom:12 },
+  bars: { display:'flex', gap:4, alignItems:'flex-end', height:80 },
   barCol: {
-    flex: 1, display: 'flex', flexDirection: 'column',
-    alignItems: 'center', gap: '4px', height: '100%',
+    flex:1, display:'flex', flexDirection:'column',
+    alignItems:'center', gap:4, height:'100%',
   },
   barTrack: {
-    flex: 1, width: '100%', background: '#1a1a16',
-    borderRadius: '3px', overflow: 'hidden', position: 'relative',
-    display: 'flex', alignItems: 'flex-end',
+    flex:1, width:'100%', background:'var(--surface2)',
+    borderRadius:4, overflow:'hidden', display:'flex', alignItems:'flex-end',
   },
-  barFill: {
-    width: '100%', display: 'flex', flexDirection: 'column',
-    justifyContent: 'flex-end', overflow: 'hidden',
-    transition: 'height 0.4s ease',
+  barFill: { width:'100%', borderRadius:4, transition:'height 0.5s ease' },
+  barDot: {
+    width:4, height:4, borderRadius:'50%', background:'var(--orange)',
   },
-  goalDot: {
-    position: 'absolute', top: '3px', left: '50%', transform: 'translateX(-50%)',
-    width: '4px', height: '4px', borderRadius: '50%', background: '#22c55e',
+
+  tagsCard: {
+    background:'var(--surface)', borderRadius:'var(--r)',
+    padding:'16px 18px', boxShadow:'var(--sh)',
+    display:'flex', flexDirection:'column', gap:12,
   },
-  barLabel: { fontSize: '9px', letterSpacing: '0.02em' },
-  tagRow: { display: 'flex', alignItems: 'center', gap: '8px' },
-  tagRowLeft: { display: 'flex', alignItems: 'center', gap: '6px', minWidth: '70px' },
-  dot: { width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0 },
-  tagName: { fontSize: '12px', color: '#888', fontWeight: '600' },
-  tagBarWrap: {
-    flex: 1, height: '7px', background: '#1a1a16',
-    borderRadius: '3px', overflow: 'hidden', position: 'relative',
+  tagRow: { display:'flex', alignItems:'center', gap:10 },
+  tagDot: { width:8, height:8, borderRadius:'50%', flexShrink:0 },
+  tagName: { fontSize:12, fontWeight:600, color:'var(--ink2)', minWidth:56 },
+  tagBarWrap: { flex:1, height:10, borderRadius:4, overflow:'hidden', background:'var(--surface2)' },
+  tagBar: { height:'100%', borderRadius:4, transition:'width 0.4s ease' },
+  tagRight: { display:'flex', flexDirection:'column', alignItems:'flex-end', minWidth:80 },
+  tagTotal: { fontSize:12, fontWeight:700, color:'var(--ink)', fontFamily:"'DM Mono',monospace" },
+  tagBudget: { fontSize:10, color:'var(--ink3)', marginTop:1 },
+  editBudgetBtn: {
+    fontSize:12, color:'var(--ink3)', padding:4,
+    flexShrink:0, lineHeight:1,
   },
-  tagBarFill: {
-    position: 'absolute', top: 0, left: 0,
-    height: '100%', borderRadius: '3px', transition: 'width 0.4s ease',
+  none: { fontSize:13, color:'var(--ink3)', padding:'8px 0' },
+
+  budgetEditor: {
+    display:'flex', alignItems:'center', gap:8,
+    background:'var(--surface2)',
+    border:'1px solid var(--ink4)',
+    borderRadius:'var(--r-sm)',
+    padding:'10px 12px',
+    marginTop:4,
   },
-  tagRight: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: '70px' },
-  budgetRow: {
-    display: 'flex', alignItems: 'center', gap: '8px',
-    padding: '6px 0', borderBottom: '1px solid #1a1a16',
-  },
+  budgetTag: { fontSize:13, fontWeight:600, color:'var(--ink)', minWidth:60 },
   budgetInput: {
-    background: '#0f0f0d', border: '1px solid #333', color: '#e8e8e0',
-    padding: '4px 8px', fontSize: '12px', fontFamily: "'Cairo', sans-serif",
-    outline: 'none', borderRadius: '5px', width: '60px',
+    flex:1, background:'transparent', border:'none',
+    color:'var(--ink)', fontSize:14,
+    fontFamily:"'DM Mono',monospace",
   },
   budgetSave: {
-    background: '#1e1e1a', border: '1px solid #333', color: '#e8e8e0',
-    fontSize: '11px', fontWeight: '700', fontFamily: "'Cairo', sans-serif",
-    cursor: 'pointer', padding: '4px 8px', borderRadius: '5px',
+    background:'var(--dark)', color:'#fff',
+    borderRadius:8, padding:'6px 12px',
+    fontSize:12, fontWeight:600,
   },
-  budgetCancel: {
-    background: 'none', border: 'none', color: '#555',
-    fontSize: '16px', cursor: 'pointer', padding: '0 2px',
-  },
-  budgetVal: { marginLeft: 'auto', fontSize: '12px', color: '#555', fontWeight: '600' },
-  editBtn: {
-    background: 'none', border: '1px solid #222', color: '#555',
-    fontSize: '10px', fontWeight: '700', fontFamily: "'Cairo', sans-serif",
-    cursor: 'pointer', padding: '2px 7px', borderRadius: '4px',
-  },
-  bestDay: {
-    background: '#0d1f0d', border: '1px solid #166534', borderRadius: '10px',
-    padding: '14px', display: 'flex', flexDirection: 'column', gap: '4px',
-  },
-  bestDayLabel: { fontSize: '10px', color: '#444', fontWeight: '700', letterSpacing: '0.08em', textTransform: 'uppercase' },
-  bestDayVal: { fontSize: '15px', color: '#e8e8e0', fontWeight: '700' },
-  bestDayMin: { fontSize: '22px', color: '#22c55e', fontWeight: '700' },
-  exportBtn: {
-    background: '#111', border: '1px solid #222', color: '#666',
-    padding: '11px', fontSize: '12px', fontWeight: '600',
-    fontFamily: "'Cairo', sans-serif", cursor: 'pointer', borderRadius: '10px',
-  },
+  budgetCancel: { fontSize:14, color:'var(--ink3)', padding:4 },
 };
