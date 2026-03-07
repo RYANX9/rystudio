@@ -158,22 +158,32 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
               <span style={s.fieldLbl}>Start</span>
               <input
                 style={s.timeInput}
-                type="datetime-local"
+                type="time"
+                step="60"
                 value={manStart}
                 onChange={e => setManStart(e.target.value)}
               />
             </div>
-       //     <span style={s.arrow}>|</span>
+      
+            <span style={s.arrow}>|</span>
+      
             <div style={s.timeField}>
               <span style={s.fieldLbl}>End</span>
               <input
                 style={s.timeInput}
-                type="datetime-local"
+                type="time"
+                step="60"
                 value={manEnd}
                 onChange={e => setManEnd(e.target.value)}
               />
             </div>
           </div>
+      
+          <div style={s.manualCalc}>
+            Duration: <strong>{fmtDur(manualMin)}</strong>
+          </div>
+        </div>
+
 
           {/* live calc — same dot-hint style as auto */}
           <div style={s.hintRow}>
