@@ -10,10 +10,10 @@ function localNow() {
     local_time: loc.toISOString().slice(11, 16),
   };
 }
-function fmtDate(str) {
+function fmtDateFull(str) {
   return new Date(str + 'T12:00:00Z').toLocaleDateString('en-GB', {
     weekday: 'long', day: 'numeric', month: 'long',
-  }).toUpperCase();
+  });
 }
 
 export default function NowPanel() {
@@ -53,20 +53,10 @@ export default function NowPanel() {
     finally { setSaving(false); }
   }
 
-  function onKeyDown(e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); lock(); }
-  }
-
   function exportAll() {
-    const grouped = {};
+    const lines = ['MY NOTES', '─'.repeat(30)];
     [...notes].reverse().forEach(n => {
-      if (!grouped[n.local_date]) grouped[n.local_date] = [];
-      grouped[n.local_date].push(n);
-    });
-    const lines = ['NOW NOTES', '─'.repeat(30)];
-    Object.keys(grouped).sort((a, b) => b.localeCompare(a)).forEach(d => {
-      lines.push('', d === today ? `TODAY — ${d}` : d);
-      grouped[d].forEach(n => lines.push(`[${n.local_time}]  ${n.body}`));
+      lines.push('', `${n.local_date}  ${n.local_time}`, n.body);
     });
     navigator.clipboard.writeText(lines.join('\n')).then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 2000);
@@ -76,71 +66,52 @@ export default function NowPanel() {
   const grouped = {};
   notes.forEach(n => { if (!grouped[n.local_date]) grouped[n.local_date] = []; grouped[n.local_date].push(n); });
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-
   const bodyLen = body.trim().length;
 
   return (
     <div style={s.wrap}>
 
-      {/* compose card — terminal feel */}
+      {/* compose */}
       <div style={s.composeCard}>
         <div style={s.composeHeader}>
-          <div style={s.composeHeaderLeft}>
-            <div style={s.composeTitle}>CAPTURE</div>
-            <div style={s.composeSub}>permanently locked on save</div>
-          </div>
+          <span style={s.composeTitle}>Capture a thought</span>
           {notes.length > 0 && (
             <button style={s.exportBtn} onClick={exportAll}>
-              {copied ? '✓ COPIED' : `EXPORT (${notes.length})`}
+              {copied ? '✓ Copied' : `Export (${notes.length})`}
             </button>
           )}
         </div>
-
-        {/* terminal input area */}
-        <div style={s.terminalWrap}>
-          <span style={s.terminalPrompt}>›</span>
-          <textarea
-            ref={ref}
-            style={s.terminal}
-            placeholder="write something…"
-            value={body}
-            onChange={e => setBody(e.target.value)}
-            onKeyDown={onKeyDown}
-            rows={4}
-          />
-        </div>
-
+        <textarea
+          ref={ref}
+          style={s.textarea}
+          placeholder="Write something…"
+          value={body}
+          onChange={e => setBody(e.target.value)}
+          onKeyDown={e => (e.ctrlKey || e.metaKey) && e.key === 'Enter' && lock()}
+          rows={4}
+        />
         <div style={s.composeFooter}>
-          <span style={s.hint}>
-            {bodyLen > 0 ? `${bodyLen} chars · ` : ''}ctrl+enter to lock
-          </span>
+          <span style={s.hint}>{bodyLen > 0 ? `${bodyLen} chars · ` : ''}Ctrl+Enter to save</span>
           <button
             style={{
               ...s.lockBtn,
-              background:  bodyLen > 0 && !saving ? 'var(--or)' : 'var(--s3)',
-              boxShadow:   bodyLen > 0 && !saving ? '0 0 16px var(--or-glow)' : 'none',
-              borderColor: bodyLen > 0 && !saving ? 'var(--or)' : 'var(--border)',
+              background:  bodyLen > 0 && !saving ? 'var(--ink)' : 'var(--ink4)',
+              color: bodyLen > 0 && !saving ? '#fff' : 'var(--ink3)',
             }}
             onClick={lock}
             disabled={!bodyLen || saving}
           >
-            {saving ? 'LOCKING…' : 'LOCK IT'}
+            {saving ? 'Saving…' : 'Lock it'}
           </button>
         </div>
       </div>
 
-      {/* notes feed */}
+      {/* feed */}
       {loading ? (
-        <div style={s.loading}>loading…</div>
+        <div style={s.loading}>Loading…</div>
       ) : notes.length === 0 ? (
-        <div style={s.emptyCard}>
-          <div style={s.emptyIcon}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="11" width="18" height="11" rx="2" stroke="var(--ink3)" strokeWidth="1.5"/>
-              <path d="M7 11V7a5 5 0 0110 0v4" stroke="var(--ink3)" strokeWidth="1.5"/>
-            </svg>
-          </div>
-          <div style={s.emptyTxt}>NO LOCKED THOUGHTS YET</div>
+        <div style={s.empty}>
+          <span style={s.emptyTxt}>No locked thoughts yet</span>
         </div>
       ) : (
         <div style={s.feed}>
@@ -148,12 +119,19 @@ export default function NowPanel() {
             <div key={date} style={s.group}>
               <div style={s.dateRow}>
                 <div style={s.dateLine} />
-                <span style={s.dateLabel}>{date === today ? 'TODAY' : fmtDate(date)}</span>
+                <span style={s.dateLbl}>
+                  {date === today ? 'Today' : fmtDateFull(date)}
+                </span>
                 <div style={s.dateLine} />
-                <span style={s.dateBadge}>{grouped[date].length}</span>
               </div>
               {grouped[date].map(note => (
-                <NoteCard key={note.id} note={note} />
+                <div key={note.id} style={s.noteCard}>
+                  <div style={s.noteHeader}>
+                    <span style={s.noteTime}>{note.local_time}</span>
+                    <span style={s.lockedBadge}>locked</span>
+                  </div>
+                  <p style={s.noteBody}>{note.body}</p>
+                </div>
               ))}
             </div>
           ))}
@@ -163,160 +141,82 @@ export default function NowPanel() {
   );
 }
 
-function NoteCard({ note }) {
-  return (
-    <div style={s.noteCard}>
-      <div style={s.noteHeader}>
-        <span style={s.noteTime}>{note.local_time}</span>
-        <div style={s.lockedBadge}>
-          <svg width="8" height="10" viewBox="0 0 8 10" fill="none">
-            <rect x="0.75" y="4.25" width="6.5" height="5.5" rx="1" stroke="var(--ink3)" strokeWidth="1.2"/>
-            <path d="M2 4.25V3A2 2 0 016 3v1.25" stroke="var(--ink3)" strokeWidth="1.2"/>
-          </svg>
-          <span style={s.lockedTxt}>LOCKED</span>
-        </div>
-      </div>
-      <p style={s.noteBody}>{note.body}</p>
-    </div>
-  );
-}
-
 const s = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 10 },
 
   composeCard: {
-    background: 'var(--s1)',
+    background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--r)',
-    padding: '16px 18px',
-    display: 'flex', flexDirection: 'column', gap: 12,
+    padding: '16px',
+    display: 'flex', flexDirection: 'column', gap: 10,
   },
-  composeHeader: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-  },
-  composeHeaderLeft: { display: 'flex', flexDirection: 'column', gap: 2 },
-  composeTitle: {
-    fontSize: 10, fontWeight: 700, color: 'var(--ink3)',
-    letterSpacing: '0.14em', fontFamily: "'DM Mono', monospace",
-  },
-  composeSub: { fontSize: 11, color: 'var(--ink3)' },
+  composeHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  composeTitle: { fontSize: 14, fontWeight: 600, color: 'var(--ink)' },
   exportBtn: {
-    background: 'var(--s2)',
-    border: '1px solid var(--border-md)',
-    color: 'var(--ink3)',
+    fontSize: 11, color: 'var(--ink2)',
+    background: 'var(--bg)',
+    border: '1px solid var(--border)',
     borderRadius: 'var(--r-pill)',
-    padding: '5px 12px',
-    fontSize: 8, fontWeight: 700, letterSpacing: '0.1em',
-    fontFamily: "'DM Mono', monospace",
-    flexShrink: 0,
+    padding: '4px 12px',
   },
-
-  terminalWrap: {
-    display: 'flex',
-    gap: 10,
-    background: 'var(--s2)',
-    border: '1px solid var(--border-md)',
+  textarea: {
+    width: '100%',
+    background: 'var(--bg)',
+    border: '1.5px solid var(--border)',
     borderRadius: 'var(--r-sm)',
     padding: '12px 14px',
-    alignItems: 'flex-start',
-  },
-  terminalPrompt: {
-    fontSize: 16, color: 'var(--or)', fontFamily: "'DM Mono', monospace",
-    lineHeight: 1.4, flexShrink: 0, paddingTop: 2,
-    textShadow: '0 0 8px var(--or)',
-  },
-  terminal: {
-    flex: 1,
-    background: 'transparent',
-    border: 'none',
-    color: 'var(--ink)',
     fontSize: 14,
+    color: 'var(--ink)',
     lineHeight: 1.65,
     resize: 'vertical',
-    minHeight: 80,
-    fontFamily: "'DM Mono', monospace",
-    fontWeight: 300,
+    minHeight: 90,
+    fontFamily: "'DM Sans', sans-serif",
   },
-
-  composeFooter: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-  },
-  hint: {
-    fontSize: 9, color: 'var(--ink3)',
-    fontFamily: "'DM Mono', monospace", letterSpacing: '0.04em',
-  },
+  composeFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  hint: { fontSize: 11, color: 'var(--ink3)' },
   lockBtn: {
-    color: '#fff', border: '1px solid',
-    borderRadius: 'var(--r-xs)',
-    padding: '9px 18px',
-    fontSize: 9, fontWeight: 700, letterSpacing: '0.14em',
-    fontFamily: "'DM Mono', monospace",
-    transition: 'all 0.2s',
+    padding: '9px 20px',
+    borderRadius: 'var(--r-sm)',
+    fontSize: 13, fontWeight: 600,
+    border: 'none', transition: 'all 0.15s',
   },
 
-  loading: {
-    textAlign: 'center', color: 'var(--ink3)', fontSize: 10,
-    padding: '24px 0', letterSpacing: '0.1em', fontFamily: "'DM Mono', monospace",
-  },
-
-  emptyCard: {
-    background: 'var(--s1)',
+  loading: { textAlign: 'center', color: 'var(--ink3)', fontSize: 13, padding: '40px 0' },
+  empty: {
+    background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--r)',
-    padding: '40px 24px',
+    padding: '36px 20px',
     textAlign: 'center',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
   },
-  emptyIcon: { opacity: 0.4 },
-  emptyTxt: {
-    fontSize: 9, fontWeight: 700, color: 'var(--ink3)',
-    letterSpacing: '0.12em', fontFamily: "'DM Mono', monospace",
-  },
+  emptyTxt: { fontSize: 13, color: 'var(--ink3)' },
 
   feed: { display: 'flex', flexDirection: 'column', gap: 10 },
   group: { display: 'flex', flexDirection: 'column', gap: 6 },
   dateRow: { display: 'flex', alignItems: 'center', gap: 10 },
   dateLine: { flex: 1, height: 1, background: 'var(--border)' },
-  dateLabel: {
-    fontSize: 8, fontWeight: 700, color: 'var(--ink3)',
-    letterSpacing: '0.1em', fontFamily: "'DM Mono', monospace", whiteSpace: 'nowrap',
-  },
-  dateBadge: {
-    background: 'var(--s3)',
-    color: 'var(--ink2)',
-    fontSize: 8, fontWeight: 700,
-    borderRadius: 'var(--r-pill)', padding: '2px 8px',
-    fontFamily: "'DM Mono', monospace",
-  },
+  dateLbl: { fontSize: 11, color: 'var(--ink2)', fontWeight: 500, whiteSpace: 'nowrap' },
 
   noteCard: {
-    background: 'var(--s1)',
+    background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--r)',
     padding: '14px 16px',
     display: 'flex', flexDirection: 'column', gap: 8,
   },
-  noteHeader: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-  },
-  noteTime: {
-    fontSize: 10, color: 'var(--ink3)',
-    fontFamily: "'DM Mono', monospace", fontWeight: 500,
-  },
+  noteHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  noteTime: { fontSize: 11, color: 'var(--ink2)', fontWeight: 500 },
   lockedBadge: {
-    display: 'flex', alignItems: 'center', gap: 5,
-    background: 'var(--s2)',
-    border: '1px solid var(--border-md)',
+    fontSize: 10, color: 'var(--ink3)',
+    background: 'var(--bg)',
+    border: '1px solid var(--border)',
     borderRadius: 'var(--r-pill)',
-    padding: '3px 8px',
-  },
-  lockedTxt: {
-    fontSize: 7, fontWeight: 700, color: 'var(--ink3)',
-    letterSpacing: '0.1em', fontFamily: "'DM Mono', monospace",
+    padding: '2px 9px',
+    letterSpacing: '0.04em',
   },
   noteBody: {
-    fontSize: 14, color: 'var(--ink)', lineHeight: 1.7,
+    fontSize: 14, color: 'var(--ink)', lineHeight: 1.65,
     whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-    fontFamily: "'DM Mono', monospace", fontWeight: 300,
   },
 };
