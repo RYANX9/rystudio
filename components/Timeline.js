@@ -77,9 +77,9 @@ export default function Timeline({ entries, onDelete, tz = 0 }) {
 
               {/* time */}
               <div style={s.timeCol}>
-                <span style={s.timeStart}>{endT}</span>
+                <span style={s.timeEnd}>{endT}</span>
                 <span style={s.timeSep}>|</span>
-                <span style={s.timeEnd}>{startT}</span>
+                <span style={s.timeStart}>{startT}</span>
               </div>
 
               {/* content */}
