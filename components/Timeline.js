@@ -1,12 +1,12 @@
 'use client';
 
 const TAG = {
-  study:   { c: 'var(--study-c)',  bg: 'var(--study-bg)',  dot: 'var(--study-dot)'  },
-  Wasting: { c: 'var(--waste-c)',  bg: 'var(--waste-bg)',  dot: 'var(--waste-dot)'  },
-  prayer:  { c: 'var(--pray-c)',   bg: 'var(--pray-bg)',   dot: 'var(--pray-dot)'   },
-  food:    { c: 'var(--food-c)',   bg: 'var(--food-bg)',   dot: 'var(--food-dot)'   },
-  sleep:   { c: 'var(--sleep-c)', bg: 'var(--sleep-bg)',  dot: 'var(--sleep-dot)'  },
-  other:   { c: 'var(--other-c)', bg: 'var(--other-bg)',  dot: 'var(--other-dot)'  },
+  study:   { color: 'var(--study)', dim: 'var(--study-dim)' },
+  Wasting: { color: 'var(--waste)', dim: 'var(--waste-dim)' },
+  prayer:  { color: 'var(--pray)',  dim: 'var(--pray-dim)'  },
+  food:    { color: 'var(--food)',  dim: 'var(--food-dim)'  },
+  sleep:   { color: 'var(--sleep)', dim: 'var(--sleep-dim)' },
+  other:   { color: 'var(--other)', dim: 'var(--other-dim)' },
 };
 
 function fmtDur(m) {
@@ -16,23 +16,15 @@ function fmtDur(m) {
   if (!mm) return `${h}h`;
   return `${h}h ${mm}m`;
 }
-
 const fmt = d => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export default function Timeline({ entries, onDelete, tz = 0 }) {
   if (!entries.length) {
     return (
       <div style={s.empty}>
-        <div style={s.emptyInner}>
-          <div style={s.emptyIcon}>
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <circle cx="16" cy="16" r="14" stroke="var(--ink4)" strokeWidth="2"/>
-              <path d="M16 9v7l4 4" stroke="var(--ink4)" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <p style={s.emptyTxt}>Nothing logged yet</p>
-          <p style={s.emptyHint}>Add your first entry above</p>
-        </div>
+        <div style={s.emptyLine} />
+        <span style={s.emptyTxt}>no entries logged</span>
+        <div style={s.emptyLine} />
       </div>
     );
   }
@@ -41,81 +33,70 @@ export default function Timeline({ entries, onDelete, tz = 0 }) {
   const totalMin = entries.reduce((a, e) => a + e.duration_minutes, 0);
   const sorted   = [...entries].sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
 
-  // tag breakdown for the 24h ribbon
+  // tag distribution for the mini bar
   const tagMin = {};
   entries.forEach(e => { tagMin[e.tag] = (tagMin[e.tag] || 0) + e.duration_minutes; });
-  const ribbonTags = Object.entries(tagMin).sort((a, b) => b[1] - a[1]);
 
   return (
     <div style={s.wrap}>
 
-      {/* ── stat card — dark top half / light bottom half, exactly like reference ── */}
-      <div style={s.statCard}>
-        <div style={s.statDark}>
-          <div style={s.statLeft}>
-            <div style={s.statBolt}>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M8 1.5L3 8h4.5L6 12.5l5-6.5H7L8 1.5z" fill="var(--orange)"/>
-              </svg>
-            </div>
-            <div>
-              <div style={s.statBig}>{fmtDur(studyMin)}</div>
-              <div style={s.statSub}>studied today</div>
-            </div>
-          </div>
-          <div style={s.statArrow}>›</div>
+      {/* ── stat strip — monospace instrument readout ── */}
+      <div style={s.statStrip}>
+        <div style={s.statMain}>
+          <span style={s.statBigNum}>{fmtDur(studyMin)}</span>
+          <span style={s.statBigLabel}>STUDY</span>
         </div>
-        <div style={s.statLight}>
-          <div style={s.statMini}>
-            <div style={s.statMiniVal}>{fmtDur(totalMin)}</div>
-            <div style={s.statMiniLbl}>total logged</div>
+
+        <div style={s.statDivider} />
+
+        <div style={s.statSub}>
+          <div style={s.statSubRow}>
+            <span style={s.statSubVal}>{fmtDur(totalMin)}</span>
+            <span style={s.statSubLabel}>TOTAL</span>
           </div>
-          <div style={s.statDivider} />
-          <div style={s.statMini}>
-            <div style={s.statMiniVal}>{entries.length}</div>
-            <div style={s.statMiniLbl}>entries</div>
-          </div>
-          <div style={s.statDivider} />
-          <div style={s.statMini}>
-            <div style={s.statMiniVal}>{ribbonTags[0]?.[0] || '—'}</div>
-            <div style={s.statMiniLbl}>top tag</div>
+          <div style={s.statSubRow}>
+            <span style={s.statSubVal}>{entries.length}</span>
+            <span style={s.statSubLabel}>ENTRIES</span>
           </div>
         </div>
 
-        {/* horizontal tag bar — like the energy usage breakdown in reference */}
-        {ribbonTags.length > 1 && (
-          <div style={s.tagBar}>
-            {ribbonTags.map(([tag, min]) => {
+        {/* tag distribution bar */}
+        <div style={s.tagBar}>
+          {Object.entries(tagMin)
+            .sort((a, b) => b[1] - a[1])
+            .map(([tag, min]) => {
               const t = TAG[tag] || TAG.other;
-              const w = (min / totalMin) * 100;
               return (
-                <div
-                  key={tag}
+                <div key={tag}
                   title={`${tag}: ${fmtDur(min)}`}
-                  style={{ ...s.tagBarSlice, width: `${w}%`, background: t.dot }}
+                  style={{
+                    ...s.tagBarSlice,
+                    width: `${(min / totalMin) * 100}%`,
+                    background: t.color,
+                  }}
                 />
               );
             })}
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* ── entry list ── */}
+      {/* ── entries ── */}
       <div style={s.list}>
-        {sorted.map(entry => {
-          const t   = TAG[entry.tag] || TAG.other;
-          const lo  = new Date(new Date(entry.started_at).getTime() + tz * 60000);
-          const end = new Date(lo.getTime() + entry.duration_minutes * 60000);
+        {sorted.map((entry, i) => {
+          const t    = TAG[entry.tag] || TAG.other;
+          const lo   = new Date(new Date(entry.started_at).getTime() + tz * 60000);
+          const end  = new Date(lo.getTime() + entry.duration_minutes * 60000);
+          const isLast = i === 0;
 
           return (
             <div key={entry.id} style={s.card}>
-              {/* left accent bar — same width/style as reference device cards */}
-              <div style={{ ...s.accent, background: t.dot }} />
+              {/* color rail */}
+              <div style={{ ...s.rail, background: t.color, boxShadow: isLast ? `0 0 8px ${t.color}60` : 'none' }} />
 
               {/* time column */}
               <div style={s.timeCol}>
                 <span style={s.timeEnd}>{fmt(end)}</span>
-                <span style={s.timeSep}>│</span>
+                <span style={s.timeSep}>╎</span>
                 <span style={s.timeStart}>{fmt(lo)}</span>
               </div>
 
@@ -123,8 +104,12 @@ export default function Timeline({ entries, onDelete, tz = 0 }) {
               <div style={s.mid}>
                 <div style={s.activity}>{entry.activity}</div>
                 <div style={s.meta}>
-                  <span style={{ ...s.tagPill, background: t.bg, color: t.c }}>
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: t.dot, display: 'inline-block', flexShrink: 0 }} />
+                  <span style={{
+                    ...s.tagChip,
+                    color:      t.color,
+                    background: t.dim,
+                    border:     `1px solid ${t.color}30`,
+                  }}>
                     {entry.tag}
                   </span>
                   <span style={s.dur}>{entry.duration_minutes}m</span>
@@ -132,8 +117,8 @@ export default function Timeline({ entries, onDelete, tz = 0 }) {
               </div>
 
               <button style={s.del} onClick={() => onDelete(entry.id)} aria-label="delete">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                  <path d="M1.5 1.5l8 8M9.5 1.5l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                 </svg>
               </button>
             </div>
@@ -145,184 +130,123 @@ export default function Timeline({ entries, onDelete, tz = 0 }) {
 }
 
 const s = {
-  wrap: { display: 'flex', flexDirection: 'column', gap: 10 },
+  wrap: { display: 'flex', flexDirection: 'column', gap: 8 },
 
-  /* stat card: dark top + light bottom, mimics reference energy card structure */
-  statCard: {
-    background: 'var(--surface)',
+  statStrip: {
+    background: 'var(--s1)',
+    border: '1px solid var(--border)',
     borderRadius: 'var(--r)',
+    padding: '14px 18px 0',
     overflow: 'hidden',
-    boxShadow: 'var(--sh)',
   },
-  statDark: {
-    background: 'var(--dark)',
-    padding: '16px 20px',
+  statMain: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: 10,
+    marginBottom: 12,
   },
-  statLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-  },
-  statBolt: {
-    width: 32,
-    height: 32,
-    borderRadius: '50%',
-    background: 'rgba(232,98,42,0.15)',
-    border: '1.5px solid rgba(232,98,42,0.3)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  statBig: {
-    fontSize: 26,
-    fontWeight: 800,
-    color: '#fff',
+  statBigNum: {
+    fontSize: 36,
+    fontWeight: 400,
+    color: 'var(--study)',
     fontFamily: "'DM Mono', monospace",
-    letterSpacing: '-0.03em',
+    letterSpacing: '-0.04em',
     lineHeight: 1,
   },
-  statSub: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 3,
-  },
-  statArrow: {
-    color: 'rgba(255,255,255,0.25)',
-    fontSize: 22,
-  },
-
-  statLight: {
-    display: 'flex',
-    padding: '14px 20px',
-  },
-  statMini: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 3,
-  },
-  statMiniVal: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: 'var(--ink)',
+  statBigLabel: {
+    fontSize: 9, fontWeight: 700, color: 'var(--study)',
+    letterSpacing: '0.14em', opacity: 0.7,
     fontFamily: "'DM Mono', monospace",
-    letterSpacing: '-0.02em',
   },
-  statMiniLbl: {
-    fontSize: 10,
-    color: 'var(--ink3)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
+  statDivider: { height: 1, background: 'var(--border)', marginBottom: 12 },
+  statSub: {
+    display: 'flex',
+    gap: 24,
+    marginBottom: 14,
   },
-  statDivider: {
-    width: 1,
-    background: 'var(--ink4)',
-    margin: '0 16px',
-    alignSelf: 'stretch',
+  statSubRow: { display: 'flex', alignItems: 'baseline', gap: 6 },
+  statSubVal: {
+    fontSize: 18, fontWeight: 400, color: 'var(--ink)',
+    fontFamily: "'DM Mono', monospace", letterSpacing: '-0.02em',
   },
-
+  statSubLabel: {
+    fontSize: 8, fontWeight: 700, color: 'var(--ink3)',
+    letterSpacing: '0.12em', fontFamily: "'DM Mono', monospace",
+  },
   tagBar: {
     display: 'flex',
-    height: 4,
+    height: 3,
     overflow: 'hidden',
+    marginLeft: -18,
+    marginRight: -18,
   },
-  tagBarSlice: {
-    height: '100%',
-    flexShrink: 0,
-  },
+  tagBarSlice: { height: '100%', flexShrink: 0 },
 
-  /* entry list */
-  list: { display: 'flex', flexDirection: 'column', gap: 8 },
+  list: { display: 'flex', flexDirection: 'column', gap: 6 },
 
   card: {
-    background: 'var(--surface)',
+    background: 'var(--s1)',
+    border: '1px solid var(--border)',
     borderRadius: 'var(--r)',
-    padding: '13px 14px 13px 18px',
+    padding: '12px 14px 12px 16px',
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-    boxShadow: 'var(--sh)',
     position: 'relative',
     overflow: 'hidden',
   },
-  accent: {
+  rail: {
     position: 'absolute',
     left: 0, top: 0, bottom: 0,
-    width: 4,
+    width: 3,
   },
   timeCol: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 1,
-    minWidth: 46,
-    flexShrink: 0,
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', gap: 1,
+    minWidth: 46, flexShrink: 0,
   },
   timeEnd: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: 'var(--ink)',
+    fontSize: 11, fontWeight: 500, color: 'var(--ink)',
     fontFamily: "'DM Mono', monospace",
-    letterSpacing: '0.01em',
   },
   timeSep: { fontSize: 9, color: 'var(--ink4)', lineHeight: 1 },
   timeStart: {
-    fontSize: 11,
-    color: 'var(--ink3)',
+    fontSize: 11, color: 'var(--ink3)',
     fontFamily: "'DM Mono', monospace",
   },
   mid: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 },
   activity: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: 'var(--ink)',
-    lineHeight: 1.3,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    fontSize: 14, fontWeight: 500, color: 'var(--ink)',
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
   meta: { display: 'flex', alignItems: 'center', gap: 8 },
-  tagPill: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    fontSize: 10,
-    fontWeight: 600,
-    padding: '3px 8px 3px 6px',
+  tagChip: {
+    fontSize: 9, fontWeight: 700,
+    padding: '3px 8px',
     borderRadius: 'var(--r-pill)',
-    letterSpacing: '0.02em',
+    letterSpacing: '0.08em',
+    fontFamily: "'DM Mono', monospace",
+    textTransform: 'uppercase',
   },
   dur: {
-    fontSize: 11,
-    color: 'var(--ink3)',
+    fontSize: 10, color: 'var(--ink3)',
     fontFamily: "'DM Mono', monospace",
   },
   del: {
-    color: 'var(--ink4)',
-    flexShrink: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 6,
-    borderRadius: 8,
+    color: 'var(--ink4)', flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 5, borderRadius: 6,
     transition: 'color 0.15s',
   },
 
   empty: {
-    background: 'var(--surface)',
-    borderRadius: 'var(--r)',
-    boxShadow: 'var(--sh)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '48px 24px',
+    display: 'flex', alignItems: 'center', gap: 16,
+    padding: '40px 0',
   },
-  emptyInner: { textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 },
-  emptyIcon: { opacity: 0.5 },
-  emptyTxt: { fontSize: 16, fontWeight: 700, color: 'var(--ink2)' },
-  emptyHint: { fontSize: 13, color: 'var(--ink3)' },
+  emptyLine: { flex: 1, height: 1, background: 'var(--border)' },
+  emptyTxt: {
+    fontSize: 10, color: 'var(--ink3)',
+    letterSpacing: '0.1em', fontFamily: "'DM Mono', monospace",
+    whiteSpace: 'nowrap',
+  },
 };
