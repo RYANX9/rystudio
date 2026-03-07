@@ -13,10 +13,6 @@ function todayStr() {
   return new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
-const RAIL_COLORS = [
-  'var(--or)', 'var(--study)', 'var(--pray)', 'var(--sleep)', 'var(--food)', 'var(--waste)',
-];
-
 export default function TodoPanel({ date }) {
   const [todos,   setTodos]   = useState([]);
   const [loading, setLoad]    = useState(true);
@@ -59,7 +55,7 @@ export default function TodoPanel({ date }) {
         body: JSON.stringify({ date, text, position: -1 }),
       });
       const todo = await res.json();
-      if (todo?.id) { setTodos(prev => [todo, ...prev]); setInput(''); inputRef.current?.focus(); }
+      if (todo?.id) { setTodos(prev => [...prev, todo]); setInput(''); inputRef.current?.focus(); }
     } finally { setAdding(false); }
   }
 
@@ -78,52 +74,46 @@ export default function TodoPanel({ date }) {
     setTodos(prev => prev.filter(t => t.id !== id));
   }
 
-  const pending = todos.filter(t => !t.done);
   const done    = todos.filter(t => t.done);
+  const pending = todos.filter(t => !t.done);
   const pct     = todos.length ? Math.round((done.length / todos.length) * 100) : 0;
-  const arcColor = pct === 100 ? 'var(--study)' : 'var(--or)';
 
-  if (loading) return <div style={s.loading}>loading tasks…</div>;
+  if (loading) return <div style={s.loading}>Loading tasks…</div>;
 
   return (
     <div style={s.wrap}>
 
-      {/* ── score readout ── */}
+      {/* score card */}
       <div style={s.scoreCard}>
         <div style={s.scoreLeft}>
           <div style={s.scoreLine}>
-            <span style={{ ...s.scoreNum, color: pct === 100 ? 'var(--study)' : 'var(--ink)' }}>
-              {done.length}
-            </span>
+            <span style={s.scoreBig}>{done.length}</span>
             <span style={s.scoreSlash}>/</span>
-            <span style={s.scoreTotal}>{todos.length}</span>
+            <span style={s.scoreOf}>{todos.length}</span>
+            <span style={s.scoreLbl}>tasks done</span>
           </div>
-          <div style={s.scoreLabel}>TASKS DONE</div>
-
-          {/* segmented progress */}
-          <div style={s.segments}>
-            {todos.map((t, i) => (
-              <div key={t.id} style={{
-                ...s.segment,
-                background: t.done ? arcColor : 'var(--s3)',
-                boxShadow:  t.done && pct === 100 ? `0 0 4px ${arcColor}` : 'none',
-              }} />
-            ))}
+          <div style={s.progTrack}>
+            <div style={{
+              ...s.progFill,
+              width: `${pct}%`,
+              background: pct === 100 ? 'var(--study)' : 'var(--ink)',
+            }} />
           </div>
         </div>
-
-        <div style={s.pctDisplay}>
-          <span style={{ ...s.pctNum, color: arcColor }}>{pct}</span>
-          <span style={s.pctSign}>%</span>
-        </div>
+        <span style={{
+          ...s.pctBig,
+          color: pct === 100 ? 'var(--study)' : 'var(--ink2)',
+        }}>
+          {pct}%
+        </span>
       </div>
 
-      {/* ── add task ── */}
-      <div style={s.addRow}>
+      {/* add input */}
+      <div style={s.addCard}>
         <input
           ref={inputRef}
           style={s.addInput}
-          placeholder="add a task…"
+          placeholder="Add a task…"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && addTask()}
@@ -131,213 +121,156 @@ export default function TodoPanel({ date }) {
         <button
           style={{
             ...s.addBtn,
-            background:  input.trim() ? 'var(--or)' : 'var(--s3)',
-            boxShadow:   input.trim() ? '0 0 12px var(--or-glow)' : 'none',
+            background: input.trim() ? 'var(--ink)' : 'var(--ink4)',
+            color: input.trim() ? '#fff' : 'var(--ink3)',
           }}
           onClick={addTask}
           disabled={adding || !input.trim()}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 1v12M1 7h12" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
+          Add
         </button>
       </div>
 
-      {/* ── pending ── */}
+      {/* pending */}
       {pending.length > 0 && (
         <div style={s.section}>
-          <div style={s.sectionHeader}>
-            <span style={s.sectionLabel}>PENDING</span>
-            <span style={s.sectionCount}>{pending.length}</span>
+          <div style={s.sectionLbl}>To do · {pending.length}</div>
+          <div style={s.taskList}>
+            {pending.map((todo, i) => (
+              <TaskRow key={todo.id} todo={todo} isLast={i === pending.length - 1}
+                onToggle={toggle} onRemove={remove} />
+            ))}
           </div>
-          {pending.map((todo, i) => (
-            <TaskRow
-              key={todo.id}
-              todo={todo}
-              color={RAIL_COLORS[i % RAIL_COLORS.length]}
-              onToggle={toggle}
-              onRemove={remove}
-            />
-          ))}
         </div>
       )}
 
-      {/* ── done ── */}
+      {/* done */}
       {done.length > 0 && (
         <div style={s.section}>
-          <div style={s.sectionHeader}>
-            <span style={s.sectionLabel}>COMPLETED</span>
-            <span style={{ ...s.sectionCount, color: 'var(--study)', background: 'var(--study-dim)' }}>
-              {done.length}
-            </span>
+          <div style={s.sectionLbl}>Done · {done.length}</div>
+          <div style={s.taskList}>
+            {done.map((todo, i) => (
+              <TaskRow key={todo.id} todo={todo} isLast={i === done.length - 1}
+                onToggle={toggle} onRemove={remove} />
+            ))}
           </div>
-          {done.map(todo => (
-            <TaskRow key={todo.id} todo={todo} color="var(--ink4)" onToggle={toggle} onRemove={remove} done />
-          ))}
         </div>
       )}
 
       {todos.length === 0 && (
-        <div style={s.empty}>no tasks for this day</div>
+        <div style={s.emptyMsg}>No tasks for this day</div>
       )}
     </div>
   );
 }
 
-function TaskRow({ todo, color, onToggle, onRemove, done }) {
+function TaskRow({ todo, isLast, onToggle, onRemove }) {
   return (
-    <div style={{ ...s.row, opacity: done ? 0.5 : 1 }}>
-      <div style={{ ...s.rowRail, background: color, boxShadow: !done ? `0 0 6px ${color}40` : 'none' }} />
+    <div style={{
+      ...s.taskRow,
+      borderBottom: isLast ? 'none' : '1px solid var(--border2)',
+      opacity: todo.done ? 0.5 : 1,
+    }}>
       <button
         style={{
           ...s.checkbox,
-          borderColor: done ? 'var(--study)'   : color,
-          background:  done ? 'var(--study)'   : 'transparent',
+          borderColor:  todo.done ? 'var(--study)' : 'var(--border)',
+          background:   todo.done ? 'var(--study)' : 'transparent',
         }}
         onClick={() => onToggle(todo)}
       >
-        {done && (
-          <svg width="8" height="7" viewBox="0 0 8 7" fill="none">
-            <path d="M1 3.5l2 2L7 1" stroke="#000" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        {todo.done && (
+          <svg width="9" height="8" viewBox="0 0 9 8" fill="none">
+            <path d="M1 4l2.5 2.5L8 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         )}
       </button>
       <span style={{
-        ...s.rowText,
-        textDecoration: done ? 'line-through' : 'none',
-        color:          done ? 'var(--ink3)'  : 'var(--ink)',
+        ...s.taskText,
+        textDecoration: todo.done ? 'line-through' : 'none',
+        color: todo.done ? 'var(--ink3)' : 'var(--ink)',
       }}>
         {todo.text}
       </span>
-      <button style={s.removeBtn} onClick={() => onRemove(todo.id)}>
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-          <path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-      </button>
+      <button style={s.removeBtn} onClick={() => onRemove(todo.id)}>×</button>
     </div>
   );
 }
 
 const s = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 10 },
-  loading: {
-    textAlign: 'center', color: 'var(--ink3)', fontSize: 10,
-    padding: '40px 0', letterSpacing: '0.1em', fontFamily: "'DM Mono', monospace",
-  },
+  loading: { textAlign: 'center', color: 'var(--ink3)', fontSize: 13, padding: '40px 0' },
 
   scoreCard: {
-    background: 'var(--s1)',
+    background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--r)',
     padding: '18px 20px',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'center',
   },
-  scoreLeft: { display: 'flex', flexDirection: 'column', gap: 8 },
-  scoreLine: { display: 'flex', alignItems: 'baseline', gap: 4 },
-  scoreNum: {
-    fontSize: 48, fontWeight: 300, lineHeight: 1,
-    fontFamily: "'DM Mono', monospace", letterSpacing: '-0.05em',
+  scoreLeft: { display: 'flex', flexDirection: 'column', gap: 10, flex: 1, paddingRight: 16 },
+  scoreLine: { display: 'flex', alignItems: 'baseline', gap: 5 },
+  scoreBig: {
+    fontFamily: "'Lora', serif",
+    fontSize: 42, fontWeight: 500, color: 'var(--ink)', lineHeight: 1,
+  },
+  scoreSlash: { fontSize: 22, color: 'var(--ink4)', fontFamily: "'Lora', serif" },
+  scoreOf: { fontSize: 22, color: 'var(--ink3)', fontFamily: "'Lora', serif" },
+  scoreLbl: { fontSize: 12, color: 'var(--ink2)', marginLeft: 4 },
+  progTrack: { height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' },
+  progFill: { height: '100%', borderRadius: 2, transition: 'width 0.4s ease, background 0.3s' },
+  pctBig: {
+    fontFamily: "'Lora', serif",
+    fontSize: 36, fontWeight: 400, lineHeight: 1,
     transition: 'color 0.3s',
   },
-  scoreSlash: { fontSize: 24, color: 'var(--ink4)', fontFamily: "'DM Mono', monospace" },
-  scoreTotal: {
-    fontSize: 24, color: 'var(--ink3)', fontFamily: "'DM Mono', monospace",
-    fontWeight: 300,
-  },
-  scoreLabel: {
-    fontSize: 8, fontWeight: 700, color: 'var(--ink3)',
-    letterSpacing: '0.14em', fontFamily: "'DM Mono', monospace",
-  },
-  segments: { display: 'flex', gap: 3, flexWrap: 'wrap', maxWidth: 200 },
-  segment: {
-    width: 14, height: 4,
-    borderRadius: 2,
-    transition: 'background 0.2s, box-shadow 0.2s',
-  },
 
-  pctDisplay: { display: 'flex', alignItems: 'flex-start' },
-  pctNum: {
-    fontSize: 64, fontWeight: 300, lineHeight: 0.9,
-    fontFamily: "'DM Mono', monospace", letterSpacing: '-0.06em',
-    transition: 'color 0.3s',
-  },
-  pctSign: {
-    fontSize: 20, color: 'var(--ink3)',
-    fontFamily: "'DM Mono', monospace",
-    marginTop: 8,
-  },
-
-  addRow: {
-    display: 'flex',
-    gap: 8,
-    background: 'var(--s1)',
+  addCard: {
+    background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--r)',
     padding: '8px 8px 8px 16px',
-    alignItems: 'center',
+    display: 'flex', gap: 8, alignItems: 'center',
   },
   addInput: {
     flex: 1, background: 'transparent', border: 'none',
-    color: 'var(--ink)', fontSize: 14, fontWeight: 400,
+    fontSize: 14, color: 'var(--ink)',
   },
   addBtn: {
-    width: 36, height: 36,
-    borderRadius: 'var(--r-xs)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0, border: 'none',
-    transition: 'all 0.2s',
-  },
-
-  section: { display: 'flex', flexDirection: 'column', gap: 6 },
-  sectionHeader: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '0 2px',
-  },
-  sectionLabel: {
-    fontSize: 8, fontWeight: 700, color: 'var(--ink3)',
-    letterSpacing: '0.14em', fontFamily: "'DM Mono', monospace",
-  },
-  sectionCount: {
-    fontSize: 9, fontWeight: 700,
-    color: 'var(--or)', background: 'var(--or-dim)',
-    borderRadius: 'var(--r-pill)', padding: '2px 8px',
-    fontFamily: "'DM Mono', monospace", letterSpacing: '0.04em',
-  },
-
-  row: {
-    background: 'var(--s1)',
-    border: '1px solid var(--border)',
+    padding: '9px 18px',
     borderRadius: 'var(--r-sm)',
-    padding: '12px 14px 12px 16px',
-    display: 'flex', alignItems: 'center', gap: 12,
-    position: 'relative', overflow: 'hidden',
-    transition: 'opacity 0.2s',
+    fontSize: 13, fontWeight: 600,
+    border: 'none', transition: 'all 0.15s',
+    flexShrink: 0,
   },
-  rowRail: {
-    position: 'absolute', left: 0, top: 0, bottom: 0,
-    width: 3, transition: 'box-shadow 0.2s',
+
+  section: { display: 'flex', flexDirection: 'column', gap: 4 },
+  sectionLbl: {
+    fontSize: 10, fontWeight: 700, color: 'var(--ink3)',
+    letterSpacing: '0.08em', textTransform: 'uppercase',
+    paddingLeft: 4,
+  },
+  taskList: {
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--r)',
+    overflow: 'hidden',
+  },
+  taskRow: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    padding: '13px 14px',
+    transition: 'opacity 0.2s',
   },
   checkbox: {
     width: 20, height: 20,
     border: '1.5px solid',
-    borderRadius: 5,
+    borderRadius: 6,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     flexShrink: 0, transition: 'all 0.15s',
   },
-  rowText: {
-    flex: 1, fontSize: 13, lineHeight: 1.4,
-    transition: 'all 0.15s',
-  },
-  removeBtn: {
-    color: 'var(--ink4)', padding: 4,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  empty: {
-    textAlign: 'center', color: 'var(--ink3)', fontSize: 10,
-    padding: '24px 0', letterSpacing: '0.1em', fontFamily: "'DM Mono', monospace",
-  },
+  taskText: { flex: 1, fontSize: 14, lineHeight: 1.4, transition: 'all 0.15s' },
+  removeBtn: { fontSize: 18, color: 'var(--ink4)', padding: '2px 4px', lineHeight: 1 },
+  emptyMsg: { textAlign: 'center', fontSize: 13, color: 'var(--ink3)', padding: '24px 0' },
 };
