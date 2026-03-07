@@ -25,11 +25,6 @@ function fmtDateShort(str) {
   });
 }
 
-const TAG_COLOR = {
-  study: 'var(--study)', Wasting: 'var(--waste)', prayer: 'var(--pray)',
-  food: 'var(--food)', sleep: 'var(--sleep)', other: 'var(--other)',
-};
-
 const TABS = [
   { key: 'log',   label: 'LOG',   icon: <LogSVG /> },
   { key: 'tasks', label: 'TASKS', icon: <TaskSVG /> },
@@ -43,19 +38,8 @@ export default function Page() {
   const [streak,       setStreak]       = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [selectedDate, setSelectedDate] = useState(todayStr());
-  const [nowMin,       setNowMin]       = useState(() => {
-    const n = new Date(); return n.getHours() * 60 + n.getMinutes();
-  });
-
   const tz      = -new Date().getTimezoneOffset();
   const isToday = selectedDate === todayStr();
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      const n = new Date(); setNowMin(n.getHours() * 60 + n.getMinutes());
-    }, 60000);
-    return () => clearInterval(id);
-  }, []);
 
   const fetchEntries = useCallback(async (date) => {
     setLoading(true);
@@ -101,10 +85,6 @@ export default function Page() {
   const lastEntryEnd = entries.length
     ? new Date(new Date(entries.at(-1).started_at).getTime() + entries.at(-1).duration_minutes * 60000).toISOString()
     : null;
-
-  // 24h ribbon: each entry mapped to % of day
-  const DAY    = 24 * 60;
-  const nowPct = (nowMin / DAY) * 100;
 
   return (
     <div style={pg.root}>
@@ -162,9 +142,6 @@ export default function Page() {
           )}
         </div>
 
-        {/* 24h ribbon — the centrepiece of the header */}
-        <Ribbon24h entries={entries} tz={tz} nowPct={nowPct} />
-
       </header>
 
       {/* ── CONTENT ── */}
@@ -210,89 +187,6 @@ export default function Page() {
 }
 
 /* ── 24h ribbon component ── */
-function Ribbon24h({ entries, tz, nowPct }) {
-  const DAY   = 24 * 60;
-  const HOURS = [0, 6, 12, 18, 24];
-
-  function minOfDay(isoStr) {
-    const local = new Date(new Date(isoStr).getTime() + tz * 60000);
-    return local.getUTCHours() * 60 + local.getUTCMinutes();
-  }
-
-  return (
-    <div style={rb.wrap}>
-      <div style={rb.track}>
-        {/* filled region */}
-        {entries.map(e => {
-          const start = minOfDay(e.started_at);
-          const end   = Math.min(DAY, start + e.duration_minutes);
-          const left  = (start / DAY) * 100;
-          const width = ((end - start) / DAY) * 100;
-          const color = TAG_COLOR[e.tag] || 'var(--other)';
-          return (
-            <div key={e.id} title={`${e.activity} — ${e.duration_minutes}m`}
-              style={{
-                ...rb.block,
-                left:       `${left}%`,
-                width:      `${Math.max(width, 0.4)}%`,
-                background: color,
-              }}
-            />
-          );
-        })}
-        {/* now cursor */}
-        <div style={{ ...rb.cursor, left: `${nowPct}%` }} />
-      </div>
-      <div style={rb.labels}>
-        {HOURS.map(h => (
-          <div key={h} style={{ ...rb.label, left: `${(h / 24) * 100}%` }}>
-            {h === 0 ? '0' : h === 24 ? '24' : `${h}`}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const rb = {
-  wrap: { padding: '0 0 14px', position: 'relative' },
-  track: {
-    position: 'relative',
-    height: 28,
-    background: 'var(--s2)',
-    borderRadius: 4,
-    overflow: 'visible',
-  },
-  block: {
-    position: 'absolute',
-    top: 0, height: '100%',
-    borderRadius: 2,
-    opacity: 0.9,
-    minWidth: 2,
-  },
-  cursor: {
-    position: 'absolute',
-    top: -4, bottom: -4,
-    width: 2,
-    background: 'var(--or)',
-    borderRadius: 1,
-    zIndex: 2,
-    boxShadow: '0 0 6px var(--or)',
-  },
-  labels: {
-    position: 'relative',
-    height: 16,
-    marginTop: 5,
-  },
-  label: {
-    position: 'absolute',
-    transform: 'translateX(-50%)',
-    fontSize: 9,
-    color: 'var(--ink3)',
-    fontFamily: "'DM Mono', monospace",
-    letterSpacing: '0.04em',
-  },
-};
 
 /* ── goal ring ── */
 function GoalRing({ pct }) {
@@ -371,7 +265,7 @@ const pg = {
   header: {
     background: 'var(--s0)',
     borderBottom: '1px solid var(--border)',
-    padding: '20px 20px 0',
+    padding: '16px 20px 14px',
     position: 'sticky',
     top: 0,
     zIndex: 20,
