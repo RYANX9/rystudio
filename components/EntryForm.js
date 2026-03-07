@@ -163,7 +163,7 @@ export default function EntryForm({ onEntryAdded, lastEntryEnd }) {
                 onChange={e => setManStart(e.target.value)}
               />
             </div>
-            <span style={s.arrow}>→</span>
+            <span style={s.arrow}>|</span>
             <div style={s.timeField}>
               <span style={s.fieldLbl}>End</span>
               <input
