@@ -26,18 +26,18 @@ function fmtDateShort(str) {
 }
 
 const TABS = [
-  { key: 'log',   label: 'LOG',   icon: <LogSVG /> },
-  { key: 'tasks', label: 'TASKS', icon: <TaskSVG /> },
-  { key: 'now',   label: 'NOW',   icon: <NowSVG /> },
-  { key: 'week',  label: 'WEEK',  icon: <WeekSVG /> },
+  { key: 'log',   label: 'LOG',   icon: <LogIcon /> },
+  { key: 'tasks', label: 'TASKS', icon: <TaskIcon /> },
+  { key: 'now',   label: 'NOW',   icon: <NowIcon /> },
+  { key: 'week',  label: 'WEEK',  icon: <WeekIcon /> },
 ];
 
 export default function Page() {
   const [tab,          setTab]          = useState('log');
   const [entries,      setEntries]      = useState([]);
-  const [streak,       setStreak]       = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [selectedDate, setSelectedDate] = useState(todayStr());
+
   const tz      = -new Date().getTimezoneOffset();
   const isToday = selectedDate === todayStr();
 
@@ -51,10 +51,6 @@ export default function Page() {
   }, [tz]);
 
   useEffect(() => { fetchEntries(selectedDate); }, [selectedDate, fetchEntries]);
-
-  useEffect(() => {
-    fetch(`/api/streak?tz=${tz}`).then(r => r.json()).then(setStreak).catch(() => {});
-  }, [entries, tz]);
 
   function handleEntryAdded(raw) {
     const arr = Array.isArray(raw) ? raw : [raw];
@@ -80,77 +76,58 @@ export default function Page() {
   }
 
   const studyMin = entries.filter(e => e.tag === 'study').reduce((s, e) => s + e.duration_minutes, 0);
-  const totalMin = entries.reduce((s, e) => s + e.duration_minutes, 0);
   const pct      = Math.min(100, Math.round((studyMin / GOAL) * 100));
   const lastEntryEnd = entries.length
     ? new Date(new Date(entries.at(-1).started_at).getTime() + entries.at(-1).duration_minutes * 60000).toISOString()
     : null;
 
   return (
-    <div style={pg.root}>
+    <div style={s.root}>
 
-      {/* ── HEADER ── */}
-      <header style={pg.header}>
-
-        {/* top row */}
-        <div style={pg.headerRow}>
-          <div style={pg.headerLeft}>
-            <div style={pg.dateLine}>
-              {isToday ? 'TODAY' : fmtDateShort(selectedDate).toUpperCase()}
-            </div>
-            <div style={pg.studyDisplay}>
-              <span style={pg.studyNum}>{fmtDur(studyMin)}</span>
-              <span style={pg.studyLabel}>studied</span>
-            </div>
-          </div>
-
-          <div style={pg.headerRight}>
-            {/* study goal ring */}
-            <GoalRing pct={pct} />
-
-            {/* date nav */}
-            <div style={pg.navCol}>
-              <button style={pg.navBtn} onClick={() => shiftDate(-1)}>
-                <ChevronUp />
-              </button>
-              <button style={{ ...pg.navBtn, opacity: isToday ? 0.2 : 1 }}
-                onClick={() => !isToday && shiftDate(1)} disabled={isToday}>
-                <ChevronDown />
-              </button>
-            </div>
-          </div>
+      <header style={s.header}>
+        {/* date + nav row */}
+        <div style={s.topRow}>
+          <button style={s.navBtn} onClick={() => shiftDate(-1)}>
+            <ChevLeft />
+          </button>
+          <span style={s.dateStr}>
+            {isToday ? 'Today' : fmtDateShort(selectedDate)}
+          </span>
+          <button
+            style={{ ...s.navBtn, opacity: isToday ? 0.25 : 1 }}
+            onClick={() => !isToday && shiftDate(1)}
+            disabled={isToday}
+          >
+            <ChevRight />
+          </button>
         </div>
 
-        {/* streak + goal row */}
-        <div style={pg.metaRow}>
-          {streak?.streak > 0 && (
-            <div style={pg.streakChip}>
-              <span style={pg.streakDot} />
-              <span style={pg.streakTxt}>{streak.streak} DAY STREAK</span>
-            </div>
-          )}
-          {pct >= 100 && (
-            <div style={pg.goalChip}>
-              <span style={pg.goalTick}>✓</span>
-              <span style={pg.goalTxt}>GOAL HIT</span>
-            </div>
-          )}
-          {totalMin > 0 && (
-            <div style={pg.totalChip}>
-              <span style={pg.totalTxt}>{fmtDur(totalMin)} TOTAL</span>
-            </div>
-          )}
+        {/* study time + goal */}
+        <div style={s.studyRow}>
+          <span style={s.studyNum}>{fmtDur(studyMin)}</span>
+          <span style={s.studyLbl}>studied</span>
+          <span style={s.pctBadge}>
+            {pct}%
+          </span>
         </div>
 
+        {/* goal bar */}
+        <div style={s.goalTrack}>
+          <div style={{
+            ...s.goalFill,
+            width: `${pct}%`,
+            background: pct >= 100 ? 'var(--study)' : pct >= 60 ? 'var(--study)' : 'var(--study)',
+            opacity: pct >= 100 ? 1 : 0.65 + pct * 0.0035,
+          }} />
+        </div>
       </header>
 
-      {/* ── CONTENT ── */}
-      <main style={pg.content}>
+      <main style={s.content}>
         {tab === 'log' && (
           <>
             <EntryForm onEntryAdded={handleEntryAdded} lastEntryEnd={lastEntryEnd} />
             {loading
-              ? <div style={pg.spin}>loading…</div>
+              ? <div style={s.spin}>loading…</div>
               : <Timeline entries={entries} onDelete={handleDelete} tz={tz} />
             }
           </>
@@ -160,24 +137,22 @@ export default function Page() {
         {tab === 'week'  && <WeeklyView />}
       </main>
 
-      {/* ── TAB BAR ── */}
-      <nav style={pg.tabBar}>
+      <nav style={s.tabBar}>
         {TABS.map(({ key, label, icon }) => {
           const active = tab === key;
           return (
-            <button key={key} style={pg.tabBtn} onClick={() => setTab(key)}>
-              <div style={{ ...pg.tabIconWrap, color: active ? 'var(--or)' : 'var(--ink3)' }}>
+            <button key={key} style={s.tabBtn} onClick={() => setTab(key)}>
+              <span style={{ ...s.tabIcon, color: active ? 'var(--study)' : 'var(--ink3)' }}>
                 {icon}
-              </div>
+              </span>
               <span style={{
-                ...pg.tabLabel,
-                color:      active ? 'var(--or)'  : 'var(--ink3)',
-                fontWeight: active ? 700           : 400,
-                letterSpacing: active ? '0.12em'  : '0.08em',
+                ...s.tabLabel,
+                color:      active ? 'var(--ink)'  : 'var(--ink3)',
+                fontWeight: active ? 600 : 400,
               }}>
                 {label}
               </span>
-              {active && <span style={pg.tabBar_activeLine} />}
+              {active && <div style={s.tabDot} />}
             </button>
           );
         })}
@@ -186,74 +161,46 @@ export default function Page() {
   );
 }
 
-/* ── 24h ribbon component ── */
-
-/* ── goal ring ── */
-function GoalRing({ pct }) {
-  const R = 24, C = 2 * Math.PI * R;
-  const dash = (pct / 100) * C;
-  const color = pct >= 100 ? 'var(--study)' : pct >= 60 ? 'var(--or)' : pct >= 30 ? '#C8882A' : 'var(--ink4)';
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-      <svg width="60" height="60" viewBox="0 0 60 60">
-        <circle cx="30" cy="30" r={R} fill="none" stroke="var(--s3)" strokeWidth="4" />
-        <circle cx="30" cy="30" r={R} fill="none" stroke={color} strokeWidth="4"
-          strokeDasharray={`${dash} ${C}`} strokeLinecap="round"
-          transform="rotate(-90 30 30)"
-          style={{ transition: 'stroke-dasharray 0.7s ease' }} />
-        <text x="30" y="31" textAnchor="middle" dominantBaseline="middle"
-          style={{ fontSize: 10, fontWeight: 700, fill: color, fontFamily: "'DM Mono', monospace" }}>
-          {pct}%
-        </text>
-      </svg>
-      <span style={{ fontSize: 8, color, fontFamily: "'DM Mono',monospace", fontWeight: 600, letterSpacing: '0.04em' }}>
-        STUDY
-      </span>
-    </div>
-  );
-}
-
-/* ── icon SVGs ── */
-function LogSVG() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <rect x="2" y="3" width="14" height="1.8" rx="0.9" fill="currentColor"/>
-    <rect x="2" y="8" width="9" height="1.8" rx="0.9" fill="currentColor" opacity=".6"/>
-    <rect x="2" y="13" width="11" height="1.8" rx="0.9" fill="currentColor" opacity=".4"/>
+function LogIcon() {
+  return <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+    <rect x="3" y="4" width="13" height="1.8" rx=".9" fill="currentColor"/>
+    <rect x="3" y="8.5" width="8" height="1.8" rx=".9" fill="currentColor" opacity=".5"/>
+    <rect x="3" y="13" width="10" height="1.8" rx=".9" fill="currentColor" opacity=".3"/>
   </svg>;
 }
-function TaskSVG() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <path d="M2 5h2.5M2 9h2.5M2 13h2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-    <path d="M6.5 5H16M6.5 9H13M6.5 13H15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity=".5"/>
+function TaskIcon() {
+  return <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+    <rect x="3" y="3.5" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+    <rect x="3" y="11.5" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+    <line x1="10" y1="5.5" x2="16" y2="5.5" stroke="currentColor" strokeWidth="1.5"/>
+    <line x1="10" y1="13.5" x2="16" y2="13.5" stroke="currentColor" strokeWidth="1.5"/>
   </svg>;
 }
-function NowSVG() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <path d="M3 13l3-5 2.5 3 2.5-7L14 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-    <rect x="1" y="1" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.4" opacity=".4"/>
+function NowIcon() {
+  return <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+    <path d="M3 13.5l3.5-5.5 2.5 3.5L12 4l3.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>;
 }
-function WeekSVG() {
-  return <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <rect x="1"   y="10" width="3" height="7" rx="1.5" fill="currentColor" opacity=".3"/>
-    <rect x="5.5" y="7"  width="3" height="10" rx="1.5" fill="currentColor" opacity=".55"/>
-    <rect x="10"  y="4"  width="3" height="13" rx="1.5" fill="currentColor"/>
-    <rect x="14.5" y="8" width="3" height="9" rx="1.5" fill="currentColor" opacity=".4"/>
+function WeekIcon() {
+  return <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
+    <rect x="1.5" y="11" width="3" height="6" rx="1.5" fill="currentColor" opacity=".3"/>
+    <rect x="6"   y="8"  width="3" height="9" rx="1.5" fill="currentColor" opacity=".6"/>
+    <rect x="10.5" y="4" width="3" height="13" rx="1.5" fill="currentColor"/>
+    <rect x="15"  y="9"  width="3" height="8" rx="1.5" fill="currentColor" opacity=".4"/>
   </svg>;
 }
-function ChevronUp() {
-  return <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M3 9l4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+function ChevLeft() {
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>;
 }
-function ChevronDown() {
-  return <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+function ChevRight() {
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>;
 }
 
-/* ── styles ── */
-const pg = {
+const s = {
   root: {
     minHeight: '100dvh',
     maxWidth: 480,
@@ -263,130 +210,91 @@ const pg = {
     flexDirection: 'column',
   },
   header: {
-    background: 'var(--s0)',
+    background: 'var(--surface)',
     borderBottom: '1px solid var(--border)',
-    padding: '16px 20px 14px',
+    padding: '18px 22px 14px',
     position: 'sticky',
     top: 0,
     zIndex: 20,
   },
-  headerRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 14,
-  },
-  headerLeft: { display: 'flex', flexDirection: 'column', gap: 4 },
-  dateLine: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: 'var(--ink3)',
-    letterSpacing: '0.14em',
-    fontFamily: "'DM Mono', monospace",
-  },
-  studyDisplay: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: 8,
-  },
-  studyNum: {
-    fontSize: 44,
-    fontWeight: 400,
-    color: 'var(--ink)',
-    fontFamily: "'DM Mono', monospace",
-    letterSpacing: '-0.04em',
-    lineHeight: 1,
-  },
-  studyLabel: {
-    fontSize: 12,
-    color: 'var(--ink3)',
-    fontWeight: 400,
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
-  },
-  headerRight: {
+  topRow: {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    flexShrink: 0,
-    paddingBottom: 4,
+    marginBottom: 10,
   },
-  navCol: { display: 'flex', flexDirection: 'column', gap: 4 },
   navBtn: {
-    width: 28, height: 28,
-    background: 'var(--s2)',
-    border: '1px solid var(--border-md)',
-    borderRadius: 8,
+    width: 30, height: 30,
+    border: '1px solid var(--border)',
+    borderRadius: '50%',
+    background: 'var(--surface)',
     color: 'var(--ink2)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    transition: 'background 0.15s',
+    flexShrink: 0,
   },
-  metaRow: {
+  dateStr: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--ink2)',
+    letterSpacing: '0.04em',
+  },
+  studyRow: {
     display: 'flex',
-    gap: 6,
-    marginBottom: 14,
-    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 10,
   },
-  streakChip: {
-    display: 'flex', alignItems: 'center', gap: 5,
-    background: 'var(--or-dim)',
-    border: '1px solid var(--or-glow)',
-    borderRadius: 'var(--r-pill)',
-    padding: '4px 10px',
+  studyNum: {
+    fontFamily: "'Lora', serif",
+    fontSize: 38,
+    fontWeight: 500,
+    color: 'var(--ink)',
+    letterSpacing: '-0.02em',
+    lineHeight: 1,
   },
-  streakDot: {
-    width: 5, height: 5, borderRadius: '50%',
-    background: 'var(--or)', display: 'block', flexShrink: 0,
-    boxShadow: '0 0 4px var(--or)',
+  studyLbl: {
+    fontSize: 13,
+    color: 'var(--ink2)',
+    flex: 1,
   },
-  streakTxt: {
-    fontSize: 9, fontWeight: 700, color: 'var(--or)',
-    letterSpacing: '0.1em', fontFamily: "'DM Mono', monospace",
+  pctBadge: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--study)',
   },
-  goalChip: {
-    display: 'flex', alignItems: 'center', gap: 4,
-    background: 'var(--study-dim)',
-    border: '1px solid rgba(58,158,106,0.25)',
-    borderRadius: 'var(--r-pill)',
-    padding: '4px 10px',
+  goalTrack: {
+    height: 3,
+    background: 'var(--border)',
+    borderRadius: 2,
+    overflow: 'hidden',
   },
-  goalTick: { fontSize: 9, color: 'var(--study)', fontWeight: 700 },
-  goalTxt: {
-    fontSize: 9, fontWeight: 700, color: 'var(--study)',
-    letterSpacing: '0.1em', fontFamily: "'DM Mono', monospace",
-  },
-  totalChip: {
-    background: 'var(--s2)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-pill)',
-    padding: '4px 10px',
-  },
-  totalTxt: {
-    fontSize: 9, fontWeight: 500, color: 'var(--ink3)',
-    letterSpacing: '0.1em', fontFamily: "'DM Mono', monospace",
+  goalFill: {
+    height: '100%',
+    borderRadius: 2,
+    transition: 'width 0.5s ease',
   },
   content: {
     flex: 1,
-    padding: '16px 16px 0',
+    padding: '14px 18px 0',
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
-    paddingBottom: 86,
+    paddingBottom: 82,
   },
   spin: {
     textAlign: 'center',
     color: 'var(--ink3)',
     fontSize: 12,
     padding: '40px 0',
-    fontFamily: "'DM Mono', monospace",
-    letterSpacing: '0.06em',
   },
   tabBar: {
     position: 'fixed',
     bottom: 0, left: '50%',
     transform: 'translateX(-50%)',
     width: '100%', maxWidth: 480,
-    background: 'var(--s0)',
+    background: 'var(--surface)',
     borderTop: '1px solid var(--border)',
     display: 'flex',
     padding: '8px 0 20px',
@@ -394,32 +302,26 @@ const pg = {
   },
   tabBtn: {
     flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 4,
+    display: 'flex', flexDirection: 'column',
+    alignItems: 'center', gap: 3,
     padding: '6px 0 2px',
     position: 'relative',
-    background: 'none',
-    border: 'none',
   },
-  tabIconWrap: {
-    width: 24, height: 24,
+  tabIcon: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    transition: 'color 0.2s',
+    width: 24, height: 24,
+    transition: 'color 0.15s',
   },
   tabLabel: {
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: '0.1em',
-    transition: 'color 0.15s',
-    fontFamily: "'DM Mono', monospace",
+    transition: 'color 0.15s, font-weight 0.15s',
   },
-  tabBar_activeLine: {
+  tabDot: {
     position: 'absolute',
-    bottom: -2,
-    width: 20, height: 2,
-    background: 'var(--or)',
+    bottom: 0,
+    width: 16, height: 2,
+    background: 'var(--study)',
     borderRadius: 1,
-    boxShadow: '0 0 6px var(--or)',
   },
 };
