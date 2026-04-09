@@ -1,42 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --bg:       #FAF8F4;
-  --surface:  #FFFFFF;
-  --border:   #EAE6DE;
-  --border2:  #F0EDE7;
-
-  --ink:      #1C1A17;
-  --ink2:     #7A756C;
-  --ink3:     #B8B2A8;
-  --ink4:     #DDD9D3;
-
-  --study:    #2D7A4F;  --study-bg:  #EAF4EE;  --study-bd: #BDE3CA;
-  --waste:    #BE3A2E;  --waste-bg:  #FDECEA;  --waste-bd: #F5C4C0;
-  --pray:     #1F5BAD;  --pray-bg:   #E9EFF9;  --pray-bd:  #BAD0F5;
-  --food:     #B86010;  --food-bg:   #FDF1E5;  --food-bd:  #F5D4AA;
-  --sleep:    #6940B8;  --sleep-bg:  #F1ECFC;  --sleep-bd: #D5C4F5;
-  --other:    #787470;  --other-bg:  #EEECE9;  --other-bd: #DEDAD4;
-
-  --r:    16px;
-  --r-sm: 12px;
-  --r-xs: 8px;
-  --r-pill: 999px;
-}
-
 html, body {
-  min-height: 100%;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: 'DM Sans', sans-serif;
-  -webkit-font-smoothing: antialiased;
+  background: #ECEAE4;
+  overscroll-behavior: none;
 }
-
-input, textarea, select, button { font-family: inherit; }
-input:focus, textarea:focus { outline: none; }
-button { cursor: pointer; border: none; background: none; }
-::-webkit-scrollbar { width: 0; }
-::placeholder { color: var(--ink3); }
-input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
