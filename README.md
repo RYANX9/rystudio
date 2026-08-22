@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Day Tracker
 
-## Getting Started
+Live: [rystudio.vercel.app](https://rystudio.vercel.app)
 
-First, run the development server:
+A personal daily-tracking dashboard built as an installable PWA. Logs time-tagged activity entries (study, prayer, sleep, food, wasted time, custom categories), tracks budgets and streaks, and pushes reminder notifications. Shares its category schema and Postgres backend with a companion Flutter mobile app, so data stays consistent across web and mobile.
+
+## Features
+
+- **Entry logging** — tag time against built-in categories (study, prayer, sleep, food, wasting, other) or custom ones, with per-category colors.
+- **Budgets** — set time budgets per category and track spend against them.
+- **Streaks** — daily streak tracking to reinforce consistency.
+- **Now notes** — quick capture for what you're doing right now.
+- **Reminders** — scheduled reminders delivered via Web Push.
+- **Locked session mode** — a focused, distraction-limited session view.
+- **Stats and export** — aggregate stats view and data export endpoint.
+- **PWA** — installable, with a service worker (`public/sw.js`) and manifest for offline-capable, app-like usage.
+
+## Tech stack
+
+- **Next.js 15** (App Router) with **React 19**
+- **Tailwind CSS 4**
+- **Neon** (`@neondatabase/serverless`) — serverless Postgres
+- **web-push** — push notification delivery
+- Route handlers under `app/api/*` for todos, budgets, entries, streak, reminders, now-notes, stats, export, push subscriptions, and locked sessions
+
+## Project structure
+
+```
+app/
+  api/
+    todos/, budgets/, entries/, streak/, reminders/,
+    now-notes/, stats/, export/, push-subscribe/, locked-session/
+  page.js          main dashboard UI
+  layout.js
+lib/
+  db.js            Postgres client
+  push.js           web-push helpers
+public/
+  manifest.json, sw.js   PWA manifest and service worker
+```
+
+## Getting started
+
+```bash
+npm install
+```
+
+Create `.env.local`:
+
+```
+DATABASE_URL=<neon postgres connection string>
+VAPID_PUBLIC_KEY=<web push public key>
+VAPID_PRIVATE_KEY=<web push private key>
+```
+
+Run the dev server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Notes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Category IDs are intentionally kept in sync with an existing companion Flutter app's database tags — changing them will affect cross-platform data compatibility.
