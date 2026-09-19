@@ -1,28 +1,6 @@
 {
-  "name": "day-tracker",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "next": "15.5.12",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@neondatabase/serverless": "^0.9.0",
-    "web-push": "^3.6.7"
-  },
-  "devDependencies": {
-    "eslint": "^9",
-    "eslint-config-next": "15.5.12",
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/postcss": "^4.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@types/node": "^20",
-    "typescript": "^5"
-  }
+  "name":"chronicle-day-tracker","version":"2.0.0","private":true,
+  "scripts":{"dev":"next dev","build":"next build","start":"next start","lint":"eslint .","typecheck":"tsc --noEmit"},
+  "dependencies":{"next":"15.5.12","react":"^19.0.0","react-dom":"^19.0.0","@neondatabase/serverless":"^0.9.0","web-push":"^3.6.7"},
+  "devDependencies":{"eslint":"^9","eslint-config-next":"15.5.12","tailwindcss":"^4.0.0","@tailwindcss/postcss":"^4.0.0","@types/react":"^19.0.0","@types/react-dom":"^19.0.0","@types/node":"^20","typescript":"^5"}
 }
